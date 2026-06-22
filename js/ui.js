@@ -27,13 +27,18 @@
       invBody: document.getElementById("inv-body"),
       arcane: document.getElementById("arcane"),
       arcBody: document.getElementById("arc-body"),
-      arcTabs: document.getElementById("arc-tabs")
+      arcTabs: document.getElementById("arc-tabs"),
+      journal: document.getElementById("journal"),
+      jrnBody: document.getElementById("jrn-body"),
+      jrnTabs: document.getElementById("jrn-tabs")
     };
     this.dialogueOpen = false;
     this.sheetOpen = false;
     this.inventoryOpen = false;
     this.arcaneOpen = false;
+    this.journalOpen = false;
     this.arcTab = "book";
+    this.jrnTab = "quests";
     // Spellmaking scratch state.
     this.make = { effect: "fire", magnitude: 10, duration: 8 };
     this.ench = { effect: "fire", magnitude: 6 };
@@ -41,7 +46,7 @@
 
   // Any modal panel that should pause the world / swallow movement keys.
   UI.prototype.anyPanelOpen = function () {
-    return this.dialogueOpen || this.inventoryOpen || this.arcaneOpen;
+    return this.dialogueOpen || this.inventoryOpen || this.arcaneOpen || this.journalOpen;
   };
 
   UI.prototype.log = function (html, cls) {
@@ -102,12 +107,24 @@
     this.showTopic(npc, npc.greetingKey || "greeting", game);
   };
 
+  UI.prototype._meetsReq = function (npc, req) {
+    if (!req) return true;
+    if (req.disp != null && npc.disposition < req.disp) return false;
+    return true;
+  };
+
+  UI.prototype._dispHeader = function (npc) {
+    this.el.dlgName.innerHTML = `${npc.name} <span class="disp">disposition ${npc.disposition}</span>`;
+  };
+
   UI.prototype.showTopic = function (npc, key, game) {
     const node = npc.dialogue[key];
     if (!node) return;
+    this._dispHeader(npc);
     this.el.dlgText.textContent = node.text;
     this.el.dlgTopics.innerHTML = "";
     (node.topics || []).forEach((t) => {
+      if (!this._meetsReq(npc, t.req)) return;       // gated topics hidden until earned
       const btn = document.createElement("button");
       btn.textContent = t.label;
       btn.onclick = () => {
@@ -116,6 +133,30 @@
       };
       this.el.dlgTopics.appendChild(btn);
     });
+    // Persuasion is always available from any topic.
+    const pbtn = document.createElement("button");
+    pbtn.className = "persuade-btn";
+    pbtn.textContent = "Persuade ▸";
+    pbtn.onclick = () => this.showPersuade(npc, game);
+    this.el.dlgTopics.appendChild(pbtn);
+  };
+
+  UI.prototype.showPersuade = function (npc, game) {
+    this._dispHeader(npc);
+    this.el.dlgText.textContent = "How do you approach them? (Fortify Presence sways the odds.)";
+    this.el.dlgTopics.innerHTML = "";
+    for (const kind in RPG.Social.approaches) {
+      const a = RPG.Social.approaches[kind];
+      const ch = kind === "bribe" ? null : RPG.Social.chance(game, npc, kind);
+      const btn = document.createElement("button");
+      btn.textContent = a.label + (ch != null ? `  (${ch}%)` : "");
+      btn.onclick = () => { RPG.Social.attempt(game, npc, kind); this.showPersuade(npc, game); };
+      this.el.dlgTopics.appendChild(btn);
+    }
+    const back = document.createElement("button");
+    back.textContent = "◂ Back";
+    back.onclick = () => this.showTopic(npc, npc.greetingKey || "greeting", game);
+    this.el.dlgTopics.appendChild(back);
   };
 
   UI.prototype.closeDialogue = function () {
@@ -257,6 +298,67 @@
     document.getElementById("en-do").onclick = () => {
       if (RPG.Magic.enchantWeapon(game, n.effect, n.magnitude)) this._renderEnchanting(game);
     };
+  };
+
+  // ---------- Journal: quests + map ----------
+  UI.prototype.toggleJournal = function (game) {
+    this.journalOpen = !this.journalOpen;
+    this.el.journal.classList.toggle("hidden", !this.journalOpen);
+    if (this.journalOpen) {
+      this.el.jrnTabs.querySelectorAll("button").forEach((b) => {
+        b.onclick = () => { this.jrnTab = b.dataset.tab; this._syncJrnTabs(); this.renderJournal(game); };
+      });
+      this._syncJrnTabs();
+      this.renderJournal(game);
+    }
+  };
+
+  UI.prototype._syncJrnTabs = function () {
+    this.el.jrnTabs.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tab === this.jrnTab);
+    });
+  };
+
+  UI.prototype.renderJournal = function (game) {
+    if (this.jrnTab === "map") return this._renderMap(game);
+    return this._renderQuests(game);
+  };
+
+  UI.prototype._renderQuests = function (game) {
+    const seer = RPG.Quests.clairvoyant(game);
+    const ids = Object.keys(game.player.quests);
+    let h = "";
+    if (!ids.length) h = '<p class="hint">No quests yet. Talk to the folk of the island.</p>';
+    ids.forEach((id) => {
+      const q = Data.quests[id], st = game.player.quests[id];
+      if (st.done) {
+        h += `<div class="quest done"><b>${q.name}</b><br><small>Completed.</small></div>`;
+      } else {
+        const stage = q.stages[st.stage], obj = stage.objective;
+        const prog = obj.count ? ` (${st.progress}/${obj.count})` : "";
+        const where = seer && obj.zone ? `<br><small class="seer">Sight: ${RPG.Zones[obj.zone].name}</small>`
+          : '<br><small class="hint">Whereabouts unknown — seek it yourself. (Major in Astromancy for the Sight.)</small>';
+        h += `<div class="quest"><b>${q.name}</b><br><small>${stage.desc}${prog}</small>${where}</div>`;
+      }
+    });
+    this.el.jrnBody.innerHTML = h;
+  };
+
+  UI.prototype._renderMap = function (game) {
+    const seer = RPG.Quests.clairvoyant(game);
+    let h = `<p class="hint">${seer ? "You have the Sight — recall to any place you've walked." : "Major in Astromancy (20+) to recall across the island."}</p>`;
+    for (const id in RPG.Zones) {
+      if (!game.visited[id]) continue;
+      const here = id === game.currentZone;
+      h += `<div class="zone-row${here ? " here" : ""}">` +
+           `<span>${RPG.Zones[id].name}${here ? " (here)" : ""}</span>`;
+      if (seer && !here) h += `<button data-z="${id}" class="travel">Recall</button>`;
+      h += `</div>`;
+    }
+    this.el.jrnBody.innerHTML = h;
+    this.el.jrnBody.querySelectorAll(".travel").forEach((b) => {
+      b.onclick = () => game.fastTravel(b.dataset.z);
+    });
   };
 
   RPG.UI = UI;

@@ -117,12 +117,26 @@ html, body {
 .spell-row .sname { flex: 1; margin: 0 8px; }
 .spell-row .sname small { color: var(--ink-dim); font-size: 10px; }
 
-#arc-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
-#arc-tabs button {
+#arc-tabs, #jrn-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+#arc-tabs button, #jrn-tabs button {
   flex: 1; padding: 6px; font-size: 12px; cursor: pointer;
   background: rgba(0,0,0,0.25); border: 1px solid var(--frame); color: var(--ink-dim); border-radius: 3px;
 }
-#arc-tabs button.active { color: var(--gold); border-color: var(--gold); background: rgba(217,164,65,0.12); }
+#arc-tabs button.active, #jrn-tabs button.active { color: var(--gold); border-color: var(--gold); background: rgba(217,164,65,0.12); }
+
+/* Dialogue / persuasion */
+.disp { font-size: 11px; color: var(--ink-dim); font-weight: normal; float: right; }
+#dlg-topics .persuade-btn { color: #e8a0d0; border-color: #6b3a5a; }
+
+/* Journal */
+.quest { padding: 8px; margin: 4px 0; background: rgba(0,0,0,0.22); border: 1px solid var(--frame); border-radius: 3px; font-size: 13px; }
+.quest.done { opacity: 0.6; }
+.quest small { color: var(--ink-dim); }
+.quest small.seer { color: #bcecff; }
+.zone-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin: 3px 0; background: rgba(0,0,0,0.22); border: 1px solid var(--frame); border-radius: 3px; font-size: 13px; }
+.zone-row.here { border-color: var(--gold); color: var(--gold); }
+.zone-row .travel { font-size: 11px; padding: 3px 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--frame); color: #bcecff; border-radius: 3px; cursor: pointer; }
+.zone-row .travel:hover { border-color: #bcecff; }
 
 .form { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
 .form label { display: flex; align-items: center; gap: 8px; }

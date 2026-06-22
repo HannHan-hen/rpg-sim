@@ -6,7 +6,7 @@
 
   RPG.Data = {
     // Core attributes (Morrowind-flavored, trimmed set).
-    attributes: ["Strength", "Agility", "Endurance", "Speed", "Willpower", "Luck"],
+    attributes: ["Strength", "Agility", "Endurance", "Speed", "Willpower", "Personality", "Luck"],
 
     // Skills that improve through use.
     skills: {
@@ -15,7 +15,9 @@
       Athletics:    { attr: "Speed",    desc: "Running and moving." },
       Elementalism: { attr: "Willpower",desc: "Raw elemental force — fire, frost, shock." },
       Sanctity:     { attr: "Willpower",desc: "Healing, wards, and blessings; light against the unclean." },
-      Astromancy:   { attr: "Willpower",desc: "Motion and space — swiftness, levitation, the astral." }
+      Astromancy:   { attr: "Willpower",desc: "Motion and space — swiftness, levitation, the astral, sight." },
+      Veilcraft:    { attr: "Personality",desc: "Illusions of sense and mind — presence, calm." },
+      Speechcraft:  { attr: "Personality",desc: "Swaying others in conversation." }
     },
 
     // XP needed to advance a skill by one level scales with current level.
@@ -40,7 +42,20 @@
       ward:     { name: "Ward",             school: "Sanctity",     kind: "buff", stat: "shield",   color: "#9ab8e0", costPer: 0.4, timed: true },
       might:    { name: "Blessing of Might",school: "Sanctity",     kind: "buff", stat: "strength", color: "#f2c878", costPer: 0.35, timed: true },
       quicken:  { name: "Quickening",       school: "Astromancy",   kind: "buff", stat: "speed",    color: "#bfe6a0", costPer: 0.3, timed: true },
-      levitate: { name: "Levitate",         school: "Astromancy",   kind: "buff", stat: "levitate", color: "#cdd8ff", costPer: 0.2, timed: true }
+      levitate: { name: "Levitate",         school: "Astromancy",   kind: "buff", stat: "levitate", color: "#cdd8ff", costPer: 0.2, timed: true },
+      presence: { name: "Fortify Presence", school: "Veilcraft",    kind: "buff", stat: "presence", color: "#e8a0d0", costPer: 0.5, timed: true },
+      calm:     { name: "Calm",             school: "Veilcraft",    kind: "calm",                    color: "#a6c4ec", costPer: 0.6, timed: true },
+      summon_flame:    { name: "Summon Flame Spirit", school: "Elementalism", kind: "summon", creature: "flame_spirit", color: "#ff8a2c", costPer: 0.55, timed: true },
+      summon_guardian: { name: "Summon Guardian",     school: "Sanctity",     kind: "summon", creature: "guardian",     color: "#ffe0a0", costPer: 0.6,  timed: true },
+      summon_wisp:     { name: "Summon Wisp",         school: "Astromancy",   kind: "summon", creature: "wisp",         color: "#cdd8ff", costPer: 0.5,  timed: true }
+    },
+
+    // Summonable allies. Their AI is the enemy AI with its target flipped to foes.
+    // Magnitude scales the summon's vitality and bite.
+    summons: {
+      flame_spirit: { name: "Flame Spirit",   color: "#ff7a2c", speed: 72, reach: 24, attackCooldown: 0.9, attackSkill: 45, damage: [2, 4], radius: 9,  baseHp: 10 },
+      guardian:     { name: "Guardian Spirit", color: "#ffe6b0", speed: 60, reach: 26, attackCooldown: 1.0, attackSkill: 55, damage: [3, 6], radius: 10, baseHp: 18 },
+      wisp:         { name: "Astral Wisp",     color: "#cdd8ff", speed: 96, reach: 20, attackCooldown: 0.7, attackSkill: 50, damage: [1, 3], radius: 7,  baseHp: 8 }
     },
 
     // Tuning knobs for the spell/enchant economy.
@@ -79,6 +94,34 @@
         name: "Saint's Mending", price: 20, minSkill: 10,
         effects: [{ effect: "heal", magnitude: 28 }],
         cost: 14, blurb: "A deep, cheap healing the temples guard jealously."
+      },
+      silver_tongue: {
+        name: "Silver Tongue", price: 16, minSkill: 8,
+        effects: [{ effect: "presence", magnitude: 40, duration: 6 }],
+        cost: 12, blurb: "Six golden seconds in which no one can refuse you."
+      },
+      kindle_ally: {
+        name: "Kindle Ally", price: 24, minSkill: 12,
+        effects: [{ effect: "summon_flame", magnitude: 12, duration: 25 }],
+        cost: 16, blurb: "A flame spirit to fight at your side."
+      },
+      soothe: {
+        name: "Soothe", price: 14, minSkill: 8,
+        effects: [{ effect: "calm", magnitude: 10, duration: 8 }],
+        cost: 10, blurb: "Still the fury of a single foe."
+      }
+    },
+
+    // Quests. Objectives are checked against game events (kills, zone entry).
+    quests: {
+      clear_cave: {
+        name: "The Thing in the Cave",
+        giver: "maeve",
+        summary: "Maeve asked you to deal with whatever stalks the Sunken Cave.",
+        stages: [
+          { desc: "Slay the Bonewalker in the Sunken Cave.", objective: { type: "kill", target: "skeleton", zone: "sunken_cave", count: 1 } }
+        ],
+        reward: { vis: 25, spell: "saints_mending" }
       }
     },
 

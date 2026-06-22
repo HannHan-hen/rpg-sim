@@ -16,8 +16,10 @@
 
     this.attributes = {
       Strength: 40, Agility: 40, Endurance: 40,
-      Speed: 40, Willpower: 40, Luck: 40
+      Speed: 40, Willpower: 40, Personality: 40, Luck: 40
     };
+
+    this.quests = {};                // questId -> { stage, progress, done }
 
     this.skills = {};                // name -> { level, xp }
     for (const name in Data.skills) this.skills[name] = { level: 5, xp: 0 };

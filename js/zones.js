@@ -57,7 +57,19 @@
               } },
             { label: "Tell me about this place.", goto: "town" },
             { label: "What's down the coast?", goto: "capital" },
+            { label: "Is there trouble I could help with?", goto: "quest" },
+            { label: "[Friend] You've been kind to me.", req: { disp: 60 }, action: (g, n, ui) => {
+                g.player.vis += 15; ui.log("Maeve presses a pouch of vis into your hand. (+15 vis)", "good");
+                ui.showTopic(n, "greeting", g);
+              } },
             { label: "Farewell.", action: (g, n, ui) => ui.closeDialogue() }
+          ]
+        },
+        quest: {
+          text: "\"Since you ask... something's been moving in the old Sunken Cave off the Coast Road. A walking heap of bones, by the screams. Put it down and I'll see you well rewarded.\"",
+          topics: [
+            { label: "I'll deal with it.", action: (g, n, ui) => { RPG.Quests.start(g, "clear_cave"); ui.showTopic(n, "greeting", g); } },
+            { label: "Maybe later.", goto: "greeting" }
           ]
         },
         town: {
@@ -97,14 +109,28 @@
       name: "Yrva, the Wandering Adept",
       dialogue: {
         greeting: {
-          text: "\"Spells, traveller? I deal in workings already woven — cleaner and cheaper to cast than anything you'd cobble together yourself. I take payment in vis; you reek of it, so you've been busy.\"",
+          text: "\"Spells, traveller? I deal in workings already woven — cleaner and cheaper to cast than anything you'd cobble together yourself. Payment in vis. Be friendly and I'll knock the price down.\"",
           topics: [
-            { label: "Hare's Haste — 18 vis", action: (g, n, ui) => { g.learnVendorSpell("hares_haste"); ui.showTopic(n, "greeting", g); } },
-            { label: "Guardian's Fury — 26 vis", action: (g, n, ui) => { g.learnVendorSpell("guardians_fury"); ui.showTopic(n, "greeting", g); } },
-            { label: "Emberlash — 14 vis", action: (g, n, ui) => { g.learnVendorSpell("emberlash"); ui.showTopic(n, "greeting", g); } },
-            { label: "Saint's Mending — 20 vis", action: (g, n, ui) => { g.learnVendorSpell("saints_mending"); ui.showTopic(n, "greeting", g); } },
+            { label: "Hare's Haste — 18 vis", action: (g, n, ui) => { g.learnVendorSpell("hares_haste", n); ui.showTopic(n, "greeting", g); } },
+            { label: "Guardian's Fury — 26 vis", action: (g, n, ui) => { g.learnVendorSpell("guardians_fury", n); ui.showTopic(n, "greeting", g); } },
+            { label: "Emberlash — 14 vis", action: (g, n, ui) => { g.learnVendorSpell("emberlash", n); ui.showTopic(n, "greeting", g); } },
+            { label: "Saint's Mending — 20 vis", action: (g, n, ui) => { g.learnVendorSpell("saints_mending", n); ui.showTopic(n, "greeting", g); } },
+            { label: "Silver Tongue — 16 vis", action: (g, n, ui) => { g.learnVendorSpell("silver_tongue", n); ui.showTopic(n, "greeting", g); } },
+            { label: "Kindle Ally — 24 vis", action: (g, n, ui) => { g.learnVendorSpell("kindle_ally", n); ui.showTopic(n, "greeting", g); } },
+            { label: "Soothe — 14 vis", action: (g, n, ui) => { g.learnVendorSpell("soothe", n); ui.showTopic(n, "greeting", g); } },
+            { label: "[Friend] Anything special for me?", req: { disp: 65 }, goto: "secret" },
             { label: "What is vis?", goto: "vis" },
             { label: "Farewell.", action: (g, n, ui) => ui.closeDialogue() }
+          ]
+        },
+        secret: {
+          text: "\"For a friend... take this one freely. A wisp of the astral, to fight at your side and light your way. Tell no one I give my art away.\"",
+          topics: [
+            { label: "Accept the gift.", action: (g, n, ui) => {
+                if (g.player.knownSpells.some((s) => s.name === "Summon Wisp")) { ui.toast("You already have it."); }
+                else { g.player.knownSpells.push(RPG.Magic.compose("Summon Wisp", [{ effect: "summon_wisp", magnitude: 10, duration: 30 }], { cost: 12, minSkill: 8 })); ui.log("Yrva teaches you Summon Wisp, freely.", "good"); }
+                ui.showTopic(n, "greeting", g);
+              } }
           ]
         },
         vis: {

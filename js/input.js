@@ -29,12 +29,14 @@
       if (g.ui.dialogueOpen) { if (k === "e" || k === "escape") g.ui.closeDialogue(); return; }
       if (g.ui.inventoryOpen) { if (k === "i" || k === "escape") g.ui.toggleInventory(g); return; }
       if (g.ui.arcaneOpen) { if (k === "m" || k === "escape") g.ui.toggleArcane(g); return; }
+      if (g.ui.journalOpen) { if (k === "j" || k === "escape") g.ui.toggleJournal(g); return; }
 
       switch (k) {
         case "e": g.tryInteract(); break;
         case "c": g.ui.toggleSheet(g.player); break;
         case "i": g.ui.toggleInventory(g); break;
         case "m": g.ui.toggleArcane(g); break;
+        case "j": g.ui.toggleJournal(g); break;
         case "escape": if (g.ui.sheetOpen) g.ui.toggleSheet(g.player); break;
       }
       // Number keys 1-9 cast the matching spellbook slot.

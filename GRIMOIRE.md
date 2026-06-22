@@ -65,10 +65,11 @@ own **summon** (see below), so summoning has variety instead of being one thin s
 | Featherfall / Waterwalk | movement | ✅ trivial variants |
 | Holy Smite (vs. undead/demons) | enemy "type" tags | 🔜 small add |
 | Drain Life | combat + lifesteal | 🔜 small add |
-| **Summon (any)** | allied-creature AI | 🔜 **easier than it looks** — a summon is a friendly enemy; we already have creature AI, just flip its target |
-| Charm / Calm / Frenzy | NPC disposition + persuasion | ⛔ needs dialogue/disposition system |
-| **Fortify Presence** (win talks) | persuasion + barter | ⛔ needs a persuasion mini-system — *this is the unlock that makes Veilcraft sing* |
-| Clairvoyance | quest/map + fast travel | ⛔ needs quest & map systems |
+| **Summon (any)** | allied-creature AI | ✅ **done** — allies reuse enemy AI with the target flipped; fade on a timer |
+| **Calm** | aggro system | ✅ done (pacifies a foe for a duration) |
+| Charm / Frenzy | NPC disposition | 🔜 disposition exists now; charm-on-NPC pending |
+| **Fortify Presence** (win talks) | persuasion + barter | ✅ **done** — persuasion contest + disposition; Presence buffs it and discounts vendors |
+| Clairvoyance | quest/map | ✅ done (skill-gated: quest markers + fast travel once you major in Astromancy) |
 | Telekinesis | physics/pickup of distant items | ⛔ needs item-on-ground physics |
 | Recall / Teleport | fast-travel network | ⛔ needs map system |
 
@@ -126,12 +127,15 @@ the base exists would be charm with nothing to push against.
 
 ## Build order for the Arts
 
-1. **Now:** rename schools; multi-effect spells; the freedom tax; a **spell-vendor
-   NPC** selling named bargain spells. *(this commit)*
-2. **Soon (small adds on existing mechanics):** Shock, Drain Life, Holy Smite +
-   enemy type tags, Featherfall/Waterwalk, **Summoning** (friendly-AI creatures),
-   spell scrolls as loot.
-3. **Unlocked by new systems:** a **persuasion/disposition** layer → Veilcraft &
-   Fortify Presence; a **quest/map** layer → Astromancy's Clairvoyance & Recall;
-   **gathering + consumables** → Herbalism & Spagyrics.
-4. **Phase 5:** Hearthcraft with the base.
+1. ✅ **Done:** renamed schools; multi-effect spells; the freedom tax; a
+   **spell-vendor NPC** selling named bargain spells.
+2. ✅ **Done:** **Summoning** (friendly-AI creatures, one per school), **Calm**,
+   a **persuasion/disposition** layer (Veilcraft + Fortify Presence + vendor
+   discounts), and a **quest/map** layer (journal, world map, Astromancy-gated
+   Clairvoyance & fast travel). First quest live: *The Thing in the Cave*.
+3. **Soon (small adds on existing mechanics):** Shock (have it), Drain Life,
+   Holy Smite + enemy type tags, Featherfall/Waterwalk, spell scrolls as loot,
+   charm-on-NPC, more quests.
+4. **Unlocked next:** **gathering + consumables** → Herbalism & Spagyrics;
+   factions & reputation (Phase 3) building on disposition.
+5. **Phase 5:** Hearthcraft with the base.

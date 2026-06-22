@@ -91,6 +91,13 @@
         } else if (e.kind === "buff") {
           p.addEffect(e.stat, s.magnitude, s.duration, e);
           parts.push(`${e.name} ${s.magnitude} (${s.duration}s)`);
+        } else if (e.kind === "summon") {
+          game.spawnSummon(e.creature, s.magnitude, s.duration);
+          parts.push(`${e.name} (${s.duration}s)`);
+        } else if (e.kind === "calm") {
+          const foe = this._nearest(game, p, Data.magic.castRange);
+          if (foe) { foe.calmedFor = s.duration; foe.aggro = false; parts.push(`calmed the ${foe.name}`); }
+          else parts.push("nothing to calm");
         }
       }
 

@@ -101,11 +101,13 @@
     const ents = [];
     for (const e of game.enemies) if (!e.dead) ents.push(e);
     for (const n of game.npcs) ents.push(n);
+    for (const s of game.summons) ents.push(s);
     ents.push(game.player);
     ents.sort((a, b) => a.y - b.y);
     for (const e of ents) {
       if (e === game.player) this._drawPlayer(ctx, e);
       else if (e.isNpc) this._drawNpc(ctx, e);
+      else if (e.def && e.def.baseHp != null) this._drawSummon(ctx, e);   // summon defs carry baseHp
       else this._drawEnemy(ctx, e);
     }
 
@@ -253,13 +255,32 @@
     ctx.fillStyle = e.hitFlash > 0 ? "#ffffff" : e.color;
     ctx.beginPath(); ctx.arc(x, y, e.radius, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = e.aggro ? "#ff5640" : "#1a1a1a";
+    ctx.fillStyle = e.calmedFor > 0 ? "#7fb0e0" : (e.aggro ? "#ff5640" : "#1a1a1a");
     ctx.fillRect(x - 4, y - 2, 2, 2); ctx.fillRect(x + 2, y - 2, 2, 2);
+    if (e.calmedFor > 0) { ctx.fillStyle = "#a6c4ec"; ctx.font = "9px serif"; ctx.textAlign = "center"; ctx.fillText("z", x + 6, y - 8); ctx.textAlign = "left"; }
     if (e.hp < e.maxHp) {
       const w = e.radius * 2;
       ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x - e.radius, y - e.radius - 7, w, 3);
       ctx.fillStyle = "#c0392b"; ctx.fillRect(x - e.radius, y - e.radius - 7, w * (e.hp / e.maxHp), 3);
     }
+  };
+
+  Renderer.prototype._drawSummon = function (ctx, s) {
+    this._shadow(ctx, s);
+    const x = s.x - this.cam.x, y = s.y - this.cam.y;
+    // Glowing, semi-ethereal ally.
+    ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(x, y, 1, x, y, s.radius + 7);
+    g.addColorStop(0, s.color); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = 0.5; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, s.radius + 7, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = s.color;
+    ctx.beginPath(); ctx.arc(x, y, s.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1.5; ctx.stroke();
+    // Fading ring as the summon's time runs out.
+    if (s.life < 4) { ctx.globalAlpha = 0.4 + 0.4 * Math.sin(this.time * 10); ctx.strokeStyle = "#fff";
+      ctx.beginPath(); ctx.arc(x, y, s.radius + 3, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
   };
 
   Renderer.prototype._drawNpc = function (ctx, n) {
