@@ -32,7 +32,7 @@
     this.inventory.push(starter);
     this.equippedWeapon = starter;
     this.knownSpells = Data.startingSpells.map(function (s) {
-      return RPG.Magic.makeSpell(s.name, s.effect, s.magnitude, s.duration);
+      return RPG.Magic.compose(s.name, s.effects, {});
     });
     this.activeEffects = [];         // timed buffs from Alteration etc.
     this.vis = 0;                    // essence harvested from kills (enchanting)

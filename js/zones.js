@@ -91,6 +91,27 @@
           topics: [{ label: "Back.", goto: "greeting" }]
         }
       }
+    },
+
+    spellmonger: {
+      name: "Yrva, the Wandering Adept",
+      dialogue: {
+        greeting: {
+          text: "\"Spells, traveller? I deal in workings already woven — cleaner and cheaper to cast than anything you'd cobble together yourself. I take payment in vis; you reek of it, so you've been busy.\"",
+          topics: [
+            { label: "Hare's Haste — 18 vis", action: (g, n, ui) => { g.learnVendorSpell("hares_haste"); ui.showTopic(n, "greeting", g); } },
+            { label: "Guardian's Fury — 26 vis", action: (g, n, ui) => { g.learnVendorSpell("guardians_fury"); ui.showTopic(n, "greeting", g); } },
+            { label: "Emberlash — 14 vis", action: (g, n, ui) => { g.learnVendorSpell("emberlash"); ui.showTopic(n, "greeting", g); } },
+            { label: "Saint's Mending — 20 vis", action: (g, n, ui) => { g.learnVendorSpell("saints_mending"); ui.showTopic(n, "greeting", g); } },
+            { label: "What is vis?", goto: "vis" },
+            { label: "Farewell.", action: (g, n, ui) => ui.closeDialogue() }
+          ]
+        },
+        vis: {
+          text: "\"Essence. It bleeds from things as they die and clings to those who do the killing. I weave it into spells; the enchanters bind it into steel. Go and make some more, hm?\"",
+          topics: [{ label: "Back.", goto: "greeting" }]
+        }
+      }
     }
   };
 
@@ -151,7 +172,7 @@
         "1": { to: "port_landing", entry: "from_town" },
         "2": { to: "coast_road", entry: "from_town" }
       },
-      npcs: [{ at: [11, 9], id: "maeve" }, { at: [18, 7], id: "corin" }],
+      npcs: [{ at: [11, 9], id: "maeve" }, { at: [18, 7], id: "corin" }, { at: [13, 4], id: "spellmonger" }],
       enemies: [],
       containers: [{ at: [4, 9], label: "Supply Crate", items: ["glass_dagger"] }]
     },

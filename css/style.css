@@ -115,6 +115,7 @@ html, body {
   background: #1a1610; border: 1px solid var(--frame); border-radius: 3px; color: var(--gold); font-size: 11px;
 }
 .spell-row .sname { flex: 1; margin: 0 8px; }
+.spell-row .sname small { color: var(--ink-dim); font-size: 10px; }
 
 #arc-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
 #arc-tabs button {

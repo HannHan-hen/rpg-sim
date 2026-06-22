@@ -142,6 +142,18 @@
     this.player.vis += e.def.xp;
   };
 
+  // Learn a curated spell from a vendor NPC, paid in vis.
+  Game.prototype.learnVendorSpell = function (key) {
+    const v = RPG.Data.vendorSpells[key];
+    if (!v) return;
+    const p = this.player;
+    if (p.knownSpells.some((s) => s.name === v.name)) { this.ui.toast(`You already know ${v.name}.`); return; }
+    if (p.vis < v.price) { this.ui.toast(`Need ${v.price} vis (have ${Math.floor(p.vis)}).`); return; }
+    p.vis -= v.price;
+    p.knownSpells.push(RPG.Magic.compose(v.name, v.effects, { cost: v.cost, minSkill: v.minSkill }));
+    this.ui.log(`You learn ${v.name}! (${v.cost} mp to cast — cast with its slot number.)`, "good");
+  };
+
   // Cast a spell from a spellbook slot (number keys) or the selected spell.
   Game.prototype.castSlot = function (i) {
     const sp = this.player.knownSpells[i];

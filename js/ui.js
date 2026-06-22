@@ -180,14 +180,21 @@
     return this._renderEnchanting(game);
   };
 
+  UI.prototype._describeSpell = function (sp) {
+    return sp.effects.map((s) => {
+      const e = Data.effects[s.effect];
+      return e.name + " " + s.magnitude + (e.timed ? `/${s.duration}s` : "");
+    }).join(" + ");
+  };
+
   UI.prototype._renderSpellbook = function (game) {
     const p = game.player;
-    let h = '<p class="hint">Your spells. The slot number casts it in play.</p>';
+    let h = '<p class="hint">Your spells. The slot number (or right-click for the selected one) casts it.</p>';
     p.knownSpells.forEach((sp, i) => {
       const sel = i === (game.selectedSpell || 0);
       h += `<div class="spell-row${sel ? " sel" : ""}" data-i="${i}">` +
            `<span class="slot">${i + 1}</span>` +
-           `<span class="sname">${sp.name}</span>` +
+           `<span class="sname">${sp.name}<br><small>${this._describeSpell(sp)} · ${sp.school}</small></span>` +
            `<span class="scost">${sp.cost} mp</span></div>`;
     });
     this.el.arcBody.innerHTML = h;
@@ -209,12 +216,14 @@
   UI.prototype._renderSpellmaking = function (game) {
     const m = this.make;
     const e = Data.effects[m.effect];
-    const cost = RPG.Magic.spellCost(m.effect, m.magnitude, m.duration);
+    const spec = [{ effect: m.effect, magnitude: m.magnitude, duration: m.duration }];
+    const cost = RPG.Magic.spellCost(spec, true);
+    const fair = RPG.Magic.spellCost(spec, false);
     let h = '<div class="form">';
     h += `<label>Effect <select id="mk-effect">${this._effectOptions(m.effect)}</select></label>`;
     h += `<label>Magnitude <input id="mk-mag" type="range" min="1" max="60" value="${m.magnitude}"> <b>${m.magnitude}</b></label>`;
     if (e.timed) h += `<label>Duration <input id="mk-dur" type="range" min="1" max="30" value="${m.duration}"> <b>${m.duration}s</b></label>`;
-    h += `<div class="cost">Magicka cost: <b>${cost}</b> &nbsp; (your max: ${game.player.maxMagicka})</div>`;
+    h += `<div class="cost">Magicka cost: <b>${cost}</b> &nbsp;<span class="roll">(self-made; a taught spell would cost ~${fair})</span> &nbsp; max: ${game.player.maxMagicka}</div>`;
     h += `<button id="mk-learn">Learn spell</button>`;
     h += '</div>';
     this.el.arcBody.innerHTML = h;
@@ -225,7 +234,7 @@
     const dur = document.getElementById("mk-dur");
     if (dur) dur.oninput = (ev) => { this.make.duration = +ev.target.value; this._renderSpellmaking(game); };
     document.getElementById("mk-learn").onclick = () => {
-      const sp = RPG.Magic.makeSpell(e.name, m.effect, m.magnitude, m.duration);
+      const sp = RPG.Magic.custom(e.name, m.effect, m.magnitude, m.duration);
       game.player.knownSpells.push(sp);
       this.log(`Learned a new spell: ${sp.name} (${sp.cost} mp).`, "good");
       this.arcTab = "book"; this._syncTabs(); this.renderArcane(game);
