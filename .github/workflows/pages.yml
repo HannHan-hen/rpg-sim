@@ -31,6 +31,9 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Turn Pages on automatically so there's no manual settings step.
+          enablement: true
 
       - name: Upload site (repo root)
         uses: actions/upload-pages-artifact@v3
