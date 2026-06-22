@@ -125,6 +125,35 @@
       }
     },
 
+    // Character creation: the crime that got you banished shapes your build.
+    backgrounds: {
+      sedition: {
+        name: "Sedition", crime: "You spoke against the Ordinate.",
+        blurb: "A sharp tongue and sharper ideas. The state has no humour.",
+        attrs: { Personality: 10, Willpower: 5 }, skills: { Speechcraft: 10, Astromancy: 8 },
+        spell: "silver_tongue", vis: 0
+      },
+      smuggling: {
+        name: "Smuggling", crime: "You moved what the Ordinate forbade.",
+        blurb: "Quick feet, quick hands, no questions asked.",
+        attrs: { Speed: 10, Agility: 5 }, skills: { Blade: 8, Athletics: 10 },
+        item: "glass_dagger", vis: 10
+      },
+      forbidden_magic: {
+        name: "Forbidden Magic", crime: "You practiced proscribed arts.",
+        blurb: "You learned what they burned the books to hide.",
+        attrs: { Willpower: 12 }, skills: { Elementalism: 10, Veilcraft: 6 },
+        spell: "emberlash", vis: 0
+      },
+      debt: {
+        name: "Ruinous Debt", crime: "You owed more than a life is worth.",
+        blurb: "Down on your luck, but not yet out. You start with coin in hand.",
+        attrs: { Luck: 10, Personality: 6 }, skills: { Block: 6, Athletics: 6 },
+        vis: 30
+      }
+    },
+
+
     enemies: {
       rat: {
         name: "Diseased Rat", maxHp: 14, speed: 46, color: "#7a6a55",

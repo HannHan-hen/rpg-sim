@@ -28,14 +28,43 @@
     requestAnimationFrame((t) => this._frame(t));
   }
 
-  // Start a fresh run at the landing.
-  Game.prototype.newGame = function () {
+  // Start a fresh run at the landing, optionally shaped by a crime/background.
+  Game.prototype.newGame = function (backgroundId) {
     RPG.RNG.reseed((Math.random() * 1e9) | 0);
     this.player = new RPG.Player(0, 0);
+    if (backgroundId) this._applyBackground(this.player, backgroundId);
     this.zoneState = {};
     this.dispositions = {};
     this.visited = {};
     this.loadZone("port_landing", "start");
+  };
+
+  // Apply a chosen crime: attribute/skill biases, a starting boon, some vis.
+  Game.prototype._applyBackground = function (p, id) {
+    const bg = RPG.Data.backgrounds[id];
+    if (!bg) return;
+    p.background = id; p.backgroundName = bg.name;
+    for (const a in (bg.attrs || {})) p.attributes[a] = (p.attributes[a] || 0) + bg.attrs[a];
+    for (const s in (bg.skills || {})) if (p.skills[s]) p.skills[s].level += bg.skills[s];
+    if (bg.vis) p.vis += bg.vis;
+    if (bg.item) { const it = RPG.Items.weapon(bg.item); if (it) { p.inventory.push(it); p.equip(it); } }
+    if (bg.spell) {
+      const v = RPG.Data.vendorSpells[bg.spell];
+      if (v && !p.knownSpells.some((s) => s.name === v.name))
+        p.knownSpells.push(RPG.Magic.compose(v.name, v.effects, { cost: v.cost, minSkill: v.minSkill }));
+    }
+    p.recalc();
+    p.hp = p.maxHp; p.magicka = p.maxMagicka; p.fatigue = p.maxFatigue;
+  };
+
+  // Called when a crime is chosen on the title screen.
+  Game.prototype.beginWithBackground = function (id) {
+    this.newGame(id);
+    const bg = RPG.Data.backgrounds[id];
+    this.overlayUp = false;
+    document.getElementById("overlay").classList.add("hidden");
+    this.ui.log(`Banished for ${bg.name.toLowerCase()}: "${bg.crime}" You stagger off the Verdict onto Ashfall.`, "good");
+    this.ui.toast("Find the Warden-Scribe (press E)");
   };
 
   Game.prototype._dispKey = function (id) { return this.currentZone + ":" + id; };
@@ -129,12 +158,39 @@
     const overlay = document.getElementById("overlay");
     const start = document.getElementById("btn-start");
     const load = document.getElementById("btn-load");
-    start.onclick = () => { this.overlayUp = false; overlay.classList.add("hidden"); };
+    const menu = document.getElementById("menu");
+    const creation = document.getElementById("creation");
+
+    // "Begin" reveals the choose-your-crime step.
+    start.onclick = () => {
+      menu.classList.add("hidden");
+      creation.classList.remove("hidden");
+      this._buildCrimeCards();
+    };
     load.onclick = () => {
       if (this.load()) { this.overlayUp = false; overlay.classList.add("hidden"); }
       else this.ui.toast("No save found.");
     };
     load.style.display = RPG.Save.has() ? "block" : "none";
+  };
+
+  Game.prototype._buildCrimeCards = function () {
+    const list = document.getElementById("crime-list");
+    list.innerHTML = "";
+    const bgs = RPG.Data.backgrounds;
+    for (const id in bgs) {
+      const bg = bgs[id];
+      const skills = Object.keys(bg.skills || {}).map((s) => "+" + bg.skills[s] + " " + s).join(", ");
+      const boon = bg.spell ? "spell: " + RPG.Data.vendorSpells[bg.spell].name
+        : bg.item ? "gear: " + RPG.Data.weapons[bg.item].name
+        : bg.vis ? bg.vis + " vis" : "";
+      const card = document.createElement("button");
+      card.className = "crime-card";
+      card.innerHTML = `<b>${bg.name}</b><span class="crime-desc">"${bg.crime}"</span>` +
+        `<span class="crime-blurb">${bg.blurb}</span><span class="crime-stats">${skills}${boon ? " · " + boon : ""}</span>`;
+      card.onclick = () => this.beginWithBackground(id);
+      list.appendChild(card);
+    }
   };
 
   Game.prototype._frame = function (t) {

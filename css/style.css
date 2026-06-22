@@ -259,6 +259,20 @@ html, body {
   cursor: pointer;
 }
 .overlay-inner button:hover { border-color: var(--gold); color: var(--gold); }
+/* Character creation: choose your crime */
+.creation-prompt { color: var(--ink); font-style: italic; margin: 0 0 14px; max-width: 460px; }
+#crime-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 480px; }
+.crime-card {
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  background: linear-gradient(var(--parchment), var(--parchment-2));
+  border: 1px solid var(--frame); border-radius: 4px; padding: 10px 12px; cursor: pointer;
+}
+.crime-card:hover { border-color: var(--gold); }
+.crime-card b { color: var(--gold); font-size: 14px; }
+.crime-card .crime-desc { font-style: italic; color: var(--ink); font-size: 11px; }
+.crime-card .crime-blurb { color: var(--ink-dim); font-size: 11px; }
+.crime-card .crime-stats { color: #bcecff; font-size: 10px; margin-top: 2px; }
+
 .controls {
   margin-top: 26px;
   display: flex;

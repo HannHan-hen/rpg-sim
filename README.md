@@ -1,8 +1,13 @@
-# Ashfall — a tiny dice-driven RPG
+# Banished — a dice-driven RPG
 
-A small top-down RPG inspired by Morrowind's spirit: **you click to attack, but the dice decide.**
-Your skills get better the more you *use* them, fatigue makes you swing wild, and the whole
-thing is drawn in code — no image files, no downloads of art packs, nothing to install.
+The rigid Ordinate Empire banishes its soft criminals to the island of **Ashfall**, their
+souls locked in a distant tower so they can never return. You are one of them. Pick the
+crime that got you here, step off the prison-barge, and carve out a life among the island's
+factions. (See `WORLDBOOK.md` for the full lore.)
+
+Inspired by Morrowind's spirit: **you click to attack, but the dice decide.** Your skills
+get better the more you *use* them, magic is a freeform sandbox of composable effects, and
+the whole thing is drawn in code — no image files, no downloads, nothing to install.
 
 Built to run on an **old, slow PC**: it's plain HTML, CSS and JavaScript using the 2D canvas.
 If your computer can open a web page, it can run this.

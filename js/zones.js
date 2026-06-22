@@ -17,27 +17,27 @@
   // ---- NPC definitions (shared; placed into zones by id) ----
   RPG.Npcs = {
     telvi: {
-      name: "Telvi, Warden of the Landing",
+      name: "Vatholm, Warden-Scribe",
       dialogue: {
         greeting: {
-          text: "\"Another one off the boat. Welcome to the only shore you'll ever leave by — which is to say, never. Breathe. Then make yourself useful.\"",
+          text: "\"Name's recorded. Soul's in the Spire. You'll not see the continent again — spare us both the speech about how it's a mistake. Welcome to Ashfall. Try to last the season.\"",
           topics: [
-            { label: "Where am I?", goto: "where" },
             { label: "Where can I go?", goto: "directions" },
-            { label: "Can I get off the island?", goto: "escape" },
+            { label: "My soul is in the Spire?", goto: "phylactery" },
+            { label: "Can I ever get off the island?", goto: "escape" },
             { label: "Farewell.", action: (g, n, ui) => ui.closeDialogue() }
           ]
         },
-        where: {
-          text: "\"The Pit, the old hands call it. A prison with no walls but the sea. We made a life of it — towns, trade, a King down the coast who'd argue he's more than a convict in a crown.\"",
+        directions: {
+          text: "\"South, if you mean to keep the law — the Tilled Reaches will have you. West, if you don't: the Unbound ask no questions and offer no mercy; go promptly, please. East, the Pyramid — I'm obliged to note it's discouraged. The Capital sits at the heart, should you fancy crowds and cutpurses. Saltmarsh Town's the gate just east of here.\"",
           topics: [{ label: "Back.", goto: "greeting" }]
         },
-        directions: {
-          text: "\"East gate takes you up to Harbor Town — good folk, the ones who never wandered. Beyond, the Coast Road. Mind the road south to the Capital; it's grander and meaner the farther you walk.\"",
+        phylactery: {
+          text: "\"Every citizen's soul is anchored in a phylactery, kept warded in the Spire of Wardens. Banishment sequesters yours. Set foot on the continent again and the wards smite you where you stand. The island, mind, is thick with loose soul-stuff — the mages call it vis. Make of that what you will.\"",
           topics: [{ label: "Back.", goto: "greeting" }]
         },
         escape: {
-          text: "\"Ha! No ship will carry a branded prisoner. The docks are a place to stare at the horizon and curse. Better to get strong and carve out something worth keeping.\"",
+          text: "\"The barge Verdict is the only lawful passage, and it carries no one back. Treacherous water besides. No — your road now runs inward, not home. Get strong. Carve out something worth keeping.\"",
           topics: [{ label: "Back.", goto: "greeting" }]
         }
       }

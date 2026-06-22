@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ashfall — a tiny RPG</title>
+  <title>Banished</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -77,18 +77,26 @@
     <!-- Title / pause overlay -->
     <div id="overlay">
       <div class="overlay-inner">
-        <h1>ASHFALL</h1>
-        <p class="subtitle">a tiny dice-driven RPG</p>
-        <button id="btn-start">Enter the world</button>
-        <button id="btn-load">Continue (load save)</button>
-        <div class="controls">
-          <b>Controls</b>
-          <span>Move — <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</span>
-          <span>Attack — <kbd>click</kbd> (the dice decide)</span>
-          <span>Talk / interact / open — <kbd>E</kbd></span>
-          <span>Cast spell — <kbd>1</kbd>–<kbd>9</kbd> / <kbd>right-click</kbd></span>
-          <span>Inventory <kbd>I</kbd> · Magic <kbd>M</kbd> · Character <kbd>C</kbd> · Journal <kbd>J</kbd></span>
-          <span>Save — <kbd>F5</kbd> &nbsp; Load — <kbd>F9</kbd></span>
+        <h1>BANISHED</h1>
+        <p class="subtitle">your soul is in the Spire. you are not going home.</p>
+
+        <div id="menu">
+          <button id="btn-start">Step off the barge</button>
+          <button id="btn-load">Continue (load save)</button>
+          <div class="controls">
+            <b>Controls</b>
+            <span>Move — <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</span>
+            <span>Attack — <kbd>click</kbd> (the dice decide)</span>
+            <span>Talk / interact / open — <kbd>E</kbd></span>
+            <span>Cast spell — <kbd>1</kbd>–<kbd>9</kbd> / <kbd>right-click</kbd></span>
+            <span>Inventory <kbd>I</kbd> · Magic <kbd>M</kbd> · Character <kbd>C</kbd> · Journal <kbd>J</kbd></span>
+            <span>Save — <kbd>F5</kbd> &nbsp; Load — <kbd>F9</kbd></span>
+          </div>
+        </div>
+
+        <div id="creation" class="hidden">
+          <p class="creation-prompt">The Ordinate does not banish the innocent. What was your crime?</p>
+          <div id="crime-list"></div>
         </div>
       </div>
     </div>
