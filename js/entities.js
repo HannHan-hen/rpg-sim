@@ -25,7 +25,17 @@
     this.skills.Athletics.level = 14;
 
     this.level = 1;
-    this.equipped = "iron_sword";
+
+    // Gear, magic, and the spoils of mastery.
+    this.inventory = [];
+    const starter = RPG.Items.weapon("iron_sword");
+    this.inventory.push(starter);
+    this.equippedWeapon = starter;
+    this.knownSpells = Data.startingSpells.map(function (s) {
+      return RPG.Magic.makeSpell(s.name, s.effect, s.magnitude, s.duration);
+    });
+    this.activeEffects = [];         // timed buffs from Alteration etc.
+    this.vis = 0;                    // essence harvested from kills (enchanting)
 
     this.recalc();                   // derive maxHp etc. from attributes
     this.hp = this.maxHp;
@@ -36,6 +46,39 @@
     this.hitFlash = 0;
     this.dead = false;
   }
+
+  // The equipped weapon's live stats (definition merged with this instance).
+  Player.prototype.weapon = function () {
+    const d = Data.weapons[this.equippedWeapon.defId];
+    return Object.assign({}, d, { name: this.equippedWeapon.name, enchant: this.equippedWeapon.enchant });
+  };
+
+  Player.prototype.equip = function (item) {
+    if (item && item.kind === "weapon") this.equippedWeapon = item;
+  };
+
+  // ---- Timed effects (Alteration buffs, shields, levitation) ----
+  Player.prototype.addEffect = function (stat, magnitude, duration, def) {
+    const existing = this.activeEffects.find(function (a) { return a.stat === stat; });
+    if (existing) {
+      existing.magnitude = Math.max(existing.magnitude, magnitude);
+      existing.remaining = Math.max(existing.remaining, duration);
+    } else {
+      this.activeEffects.push({ stat: stat, magnitude: magnitude, remaining: duration,
+        color: def ? def.color : "#fff", name: def ? def.name : stat });
+    }
+  };
+  Player.prototype.effMag = function (stat) {
+    let m = 0;
+    for (const a of this.activeEffects) if (a.stat === stat) m += a.magnitude;
+    return m;
+  };
+  Player.prototype.tickEffects = function (dt) {
+    for (let i = this.activeEffects.length - 1; i >= 0; i--) {
+      this.activeEffects[i].remaining -= dt;
+      if (this.activeEffects[i].remaining <= 0) this.activeEffects.splice(i, 1);
+    }
+  };
 
   // Derived stats from attributes (kept simple and readable).
   Player.prototype.recalc = function () {
@@ -83,8 +126,6 @@
     // Sum of starting skill levels, used as the leveling baseline.
     return 5 * (Object.keys(Data.skills).length - 2) + 18 + 14;
   };
-
-  Player.prototype.weapon = function () { return Data.weapons[this.equipped]; };
 
   // Fatigue normalized 0..1 — drives hit chance and is the "are you winded" feel.
   Player.prototype.fatigueFactor = function () {

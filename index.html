@@ -17,8 +17,14 @@
         <div class="bar"><div class="bar-label">Magicka</div><div class="bar-track"><div id="bar-magicka" class="bar-fill magicka"></div></div></div>
         <div class="bar"><div class="bar-label">Fatigue</div><div class="bar-track"><div id="bar-fatigue" class="bar-fill fatigue"></div></div></div>
       </div>
-      <div id="level-chip">Lvl <span id="level-num">1</span></div>
+      <div class="chip-group">
+        <div id="level-chip">Lvl <span id="level-num">1</span></div>
+        <div id="vis-chip">Vis <span id="vis-num">0</span></div>
+      </div>
     </div>
+
+    <!-- Active magic effects -->
+    <div id="effects"></div>
 
     <!-- Scrolling message log -->
     <div id="log"></div>
@@ -38,6 +44,25 @@
       <p class="hint">Press <b>E</b> or <b>Esc</b> to leave</p>
     </div>
 
+    <!-- Inventory (toggle with I) -->
+    <div id="inventory" class="panel hidden">
+      <h2>Inventory</h2>
+      <div id="inv-body"></div>
+      <p class="hint">Click a weapon to equip it. Press <b>I</b> to close</p>
+    </div>
+
+    <!-- Arcane menu: spellmaking + enchanting (toggle with M) -->
+    <div id="arcane" class="panel wide hidden">
+      <h2>Arcane Workings</h2>
+      <div id="arc-tabs">
+        <button data-tab="book" class="active">Spellbook</button>
+        <button data-tab="make">Spellmaking</button>
+        <button data-tab="ench">Enchanting</button>
+      </div>
+      <div id="arc-body"></div>
+      <p class="hint">Cast: number keys <kbd>1</kbd>–<kbd>9</kbd> or <kbd>right-click</kbd>. Press <b>M</b> to close</p>
+    </div>
+
     <!-- Title / pause overlay -->
     <div id="overlay">
       <div class="overlay-inner">
@@ -49,8 +74,9 @@
           <b>Controls</b>
           <span>Move — <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</span>
           <span>Attack — <kbd>click</kbd> (the dice decide)</span>
-          <span>Talk / interact — <kbd>E</kbd></span>
-          <span>Character sheet — <kbd>C</kbd></span>
+          <span>Talk / interact / open — <kbd>E</kbd></span>
+          <span>Cast spell — <kbd>1</kbd>–<kbd>9</kbd> / <kbd>right-click</kbd></span>
+          <span>Inventory — <kbd>I</kbd> &nbsp; Magic — <kbd>M</kbd> &nbsp; Character — <kbd>C</kbd></span>
           <span>Save — <kbd>F5</kbd> &nbsp; Load — <kbd>F9</kbd></span>
         </div>
       </div>
@@ -60,6 +86,8 @@
   <!-- Plain (non-module) scripts so the game also runs by double-clicking index.html -->
   <script src="js/rng.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/magic.js"></script>
   <script src="js/save.js"></script>
   <script src="js/zones.js"></script>
   <script src="js/world.js"></script>

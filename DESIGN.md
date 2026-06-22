@@ -83,12 +83,16 @@ phase is fun.
   region (Port Landing → Harbor Town → Coast Road → Sunken Cave), populated with
   NPCs who hint at the wider island. Outdoor vs cave ambience (light, ground, water).
 
-- **Phase 2 — Loot & the magic dream** 🔮 *(next; Hann's priority)*
-  Inventory & equipment. Found/named weapons ("weird swords"). Then the big one:
-  **spellmaking & enchanting** — combine effects (fire, frost, *alteration*:
-  levitate, open lock, jump, fortify), pick magnitude/duration/area, and pay for it
-  in magicka. Bind effects to gear via enchanting. The intentionally-broken
-  Morrowind sandbox.
+- **Phase 2 — Loot & the magic dream** ✅ *(done)*
+  Inventory & equipment (press **I**). Loot containers and found/named weapons
+  (the weird sword **Ashbrand** waits in the Sunken Cave). **Spellmaking** (press
+  **M**): compose fire/frost/heal and *alteration* effects (Levitate — float over
+  water!, Fortify Speed, Fortify Strength, Shield) by effect + magnitude +
+  duration, paying in magicka, success scaling with the school skill. **Enchanting**:
+  bind an effect onto your weapon, paid in **vis** harvested from kills.
+  Cast with number keys **1–9** or **right-click**.
+  *Next here when wanted:* armour, potions/alchemy, more effects (paralyze,
+  telekinesis), constant-effect apparel enchants, soul gems.
 
 - **Phase 3 — Factions & reputation**
   Join the King's men, the Mages' Enclave, the northern outlaws, the eastern

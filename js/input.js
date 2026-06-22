@@ -25,19 +25,20 @@
 
       if (g.overlayUp) return;            // ignore world keys on the title screen
 
-      // Dialogue swallows most input.
-      if (g.ui.dialogueOpen) {
-        if (k === "e" || k === "escape") g.ui.closeDialogue();
-        return;
-      }
+      // Modal panels swallow input; their toggle keys (and Esc) still work to close.
+      if (g.ui.dialogueOpen) { if (k === "e" || k === "escape") g.ui.closeDialogue(); return; }
+      if (g.ui.inventoryOpen) { if (k === "i" || k === "escape") g.ui.toggleInventory(g); return; }
+      if (g.ui.arcaneOpen) { if (k === "m" || k === "escape") g.ui.toggleArcane(g); return; }
 
       switch (k) {
         case "e": g.tryInteract(); break;
         case "c": g.ui.toggleSheet(g.player); break;
-        case "1": RPG.Combat.castDestruction(g); break;
-        case "2": RPG.Combat.castRestoration(g); break;
+        case "i": g.ui.toggleInventory(g); break;
+        case "m": g.ui.toggleArcane(g); break;
         case "escape": if (g.ui.sheetOpen) g.ui.toggleSheet(g.player); break;
       }
+      // Number keys 1-9 cast the matching spellbook slot.
+      if (k >= "1" && k <= "9") g.castSlot(parseInt(k, 10) - 1);
       if (e.key === "F5") { g.save(); }
       if (e.key === "F9") { g.load(); }
     });
@@ -53,11 +54,12 @@
 
     canvas.addEventListener("mousedown", (e) => {
       e.preventDefault();
-      if (g.overlayUp || g.ui.dialogueOpen) return;
-      RPG.Combat.playerSwing(g);
+      if (g.overlayUp || g.ui.anyPanelOpen()) return;
+      if (e.button === 2) RPG.Magic.cast(g, g.player.knownSpells[g.selectedSpell || 0]); // right-click casts
+      else RPG.Combat.playerSwing(g);
     });
 
-    // Block the context menu so right-click could later be a block/parry.
+    // Right-click casts the selected spell instead of opening a menu.
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
   };
 

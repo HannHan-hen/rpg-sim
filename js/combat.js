@@ -41,64 +41,27 @@
       const roll = RPG.RNG.d100();
 
       if (roll <= chance) {
-        let dmg = RPG.RNG.int(w.min, w.max) + Math.floor(p.attributes.Strength / 15);
+        const str = p.attributes.Strength + p.effMag("strength");   // Fortify Strength counts
+        let dmg = RPG.RNG.int(w.min, w.max) + Math.floor(str / 15);
         target.damage(dmg);
         game.fx.blood(target.x, target.y);
         game.ui.log(`You hit the ${target.name} for ${dmg}. <span class="roll">(${roll}/${chance})</span>`, "hit");
-        p.trainSkill(w.skill, 1.4, game.ui);
-        if (target.dead) {
-          game.ui.log(`The ${target.name} dies.`, "good");
-          p.trainSkill(w.skill, target.def.xp * 0.25, game.ui);
+
+        // Enchanted weapons deliver a second, elemental bite.
+        if (w.enchant) {
+          const e = Data.effects[w.enchant.effect];
+          target.damage(w.enchant.magnitude);
+          game.fx.blood(target.x, target.y, e.color);
+          game.ui.log(`${w.name.split(" [")[0]} sears for +${w.enchant.magnitude} ${e.name.split(" ")[0]}.`, "hit");
         }
+
+        p.trainSkill(w.skill, 1.4, game.ui);
+        if (target.dead) game.onEnemyDefeated(target);
       } else {
         game.ui.log(`You miss the ${target.name}. <span class="roll">(${roll}/${chance})</span>`, "miss");
         p.trainSkill(w.skill, 0.6, game.ui);
       }
       return true;
-    },
-
-    castDestruction: function (game) {
-      const p = game.player;
-      const sp = Data.spells.firebite;
-      if (p.dead || p.magicka < sp.cost) { game.ui.log("Not enough magicka.", "miss"); return; }
-      p.magicka -= sp.cost;
-      const target = this._nearestEnemy(game, p, sp.range);
-      game.fx.spark(p.x, p.y, p.facing);
-      if (!target) { game.ui.log("Your flame fizzles into the dark.", "miss"); p.trainSkill(sp.skill, 0.5, game.ui); return; }
-      // Spell success scales with the school's skill.
-      const chance = clamp(Math.round(30 + p.skills[sp.skill].level), 10, 98);
-      const roll = RPG.RNG.d100();
-      if (roll <= chance) {
-        const dmg = RPG.RNG.int(sp.min, sp.max) + Math.floor(p.attributes.Willpower / 20);
-        target.damage(dmg);
-        game.fx.blood(target.x, target.y, "#ffae42");
-        game.ui.log(`Firebite scorches the ${target.name} for ${dmg}. <span class="roll">(${roll}/${chance})</span>`, "hit");
-        p.trainSkill(sp.skill, 1.8, game.ui);
-        if (target.dead) game.ui.log(`The ${target.name} dies.`, "good");
-      } else {
-        game.ui.log("The spell sputters and fails.", "miss");
-        p.trainSkill(sp.skill, 0.8, game.ui);
-      }
-    },
-
-    castRestoration: function (game) {
-      const p = game.player;
-      const sp = Data.spells.mend;
-      if (p.dead || p.magicka < sp.cost) { game.ui.log("Not enough magicka.", "miss"); return; }
-      if (p.hp >= p.maxHp) { game.ui.log("You are already whole.", "miss"); return; }
-      p.magicka -= sp.cost;
-      const chance = clamp(Math.round(40 + p.skills[sp.skill].level), 10, 98);
-      const roll = RPG.RNG.d100();
-      if (roll <= chance) {
-        const heal = RPG.RNG.int(sp.heal[0], sp.heal[1]);
-        p.hp = Math.min(p.maxHp, p.hp + heal);
-        game.fx.spark(p.x, p.y, p.facing, "#7fd08c");
-        game.ui.log(`Mend knits your wounds (+${heal}).`, "good");
-        p.trainSkill(sp.skill, 2.0, game.ui);
-      } else {
-        game.ui.log("The mending spell unravels.", "miss");
-        p.trainSkill(sp.skill, 1.0, game.ui);
-      }
     },
 
     // Enemy tries to hit the player if in reach and off cooldown.
@@ -108,7 +71,10 @@
       const chance = clamp(Math.round(e.def.attackSkill - playerEvasion(p) + 25), 5, 95);
       const roll = RPG.RNG.d100();
       if (roll <= chance) {
-        const dmg = RPG.RNG.int(e.def.damage[0], e.def.damage[1]);
+        let dmg = RPG.RNG.int(e.def.damage[0], e.def.damage[1]);
+        // Shield (Alteration) soaks a percentage of the blow.
+        const sh = p.effMag("shield");
+        if (sh > 0) dmg = Math.max(1, Math.round(dmg * (1 - Math.min(0.8, sh / 100))));
         p.damage(dmg, game.ui);
         game.fx.blood(p.x, p.y);
         game.ui.log(`The ${e.name} hits you for ${dmg}. <span class="roll">(${roll}/${chance})</span>`, "hurt");

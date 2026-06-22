@@ -95,6 +95,7 @@
     }
 
     this._drawPortals(ctx, world);
+    this._drawContainers(ctx, game);
 
     // Entities, depth-sorted by y.
     const ents = [];
@@ -197,6 +198,24 @@
     }
   };
 
+  Renderer.prototype._drawContainers = function (ctx, game) {
+    for (const c of game.containers) {
+      const x = c.x - this.cam.x, y = c.y - this.cam.y;
+      ctx.fillStyle = c.opened ? "#3a2c1c" : "#6b4f2a";
+      ctx.fillRect(x - 10, y - 7, 20, 14);
+      ctx.strokeStyle = "#caa24a"; ctx.lineWidth = 1.5; ctx.strokeRect(x - 10, y - 7, 20, 14);
+      ctx.fillStyle = "#caa24a";
+      if (c.opened) { ctx.fillRect(x - 10, y - 7, 20, 3); }   // lid flipped back
+      else {
+        ctx.fillRect(x - 1, y - 2, 2, 4);                     // latch
+        // a little shine to read as "interactive"
+        const bob = Math.sin(this.time * 3 + c.x) * 1.5;
+        ctx.font = "10px serif"; ctx.textAlign = "center";
+        ctx.fillText("✦", x, y - 11 + bob); ctx.textAlign = "left";
+      }
+    }
+  };
+
   Renderer.prototype._shadow = function (ctx, e) {
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
@@ -207,6 +226,16 @@
   Renderer.prototype._drawPlayer = function (ctx, p) {
     this._shadow(ctx, p);
     const x = p.x - this.cam.x, y = p.y - this.cam.y;
+    // Aura when buffs/levitation are active.
+    if (p.activeEffects && p.activeEffects.length) {
+      const c = p.activeEffects[p.activeEffects.length - 1].color;
+      ctx.globalCompositeOperation = "lighter";
+      const g = ctx.createRadialGradient(x, y, 2, x, y, p.radius + 8 + Math.sin(this.time * 6) * 2);
+      g.addColorStop(0, c); g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalAlpha = 0.35; ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, p.radius + 10, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    }
     ctx.fillStyle = p.hitFlash > 0 ? "#ffd9d2" : p.color;
     ctx.beginPath(); ctx.arc(x, y, p.radius, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#3a3024"; ctx.lineWidth = 2; ctx.stroke();

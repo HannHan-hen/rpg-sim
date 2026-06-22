@@ -152,7 +152,8 @@
         "2": { to: "coast_road", entry: "from_town" }
       },
       npcs: [{ at: [11, 9], id: "maeve" }, { at: [18, 7], id: "corin" }],
-      enemies: []
+      enemies: [],
+      containers: [{ at: [4, 9], label: "Supply Crate", items: ["glass_dagger"] }]
     },
 
     coast_road: {
@@ -208,7 +209,8 @@
       entries: { mouth: [2, 4] },
       portals: { "1": { to: "coast_road", entry: "from_cave" } },
       npcs: [],
-      enemies: [{ type: "skeleton", at: [16, 8] }, { type: "rat", at: [6, 10] }]
+      enemies: [{ type: "skeleton", at: [16, 8] }, { type: "rat", at: [6, 10] }],
+      containers: [{ at: [11, 6], label: "Ancient Reliquary", items: ["ashbrand"] }]
     }
   };
 })(window.RPG = window.RPG || {});

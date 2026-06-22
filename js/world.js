@@ -78,6 +78,10 @@
     (def.enemies || []).forEach((e) => {
       this.spawns.enemies.push({ type: e.type, x: e.at[0] * TILE + TILE / 2, y: e.at[1] * TILE + TILE / 2 });
     });
+    this.spawns.containers = (def.containers || []).map((ct) => ({
+      x: ct.at[0] * TILE + TILE / 2, y: ct.at[1] * TILE + TILE / 2,
+      label: ct.label || "Chest", items: ct.items || []
+    }));
   };
 
   World.prototype.tileAt = function (x, y) {
@@ -104,6 +108,21 @@
     if (!this.blocked(e.x + dx, e.y + dy, e.radius)) { e.x += dx; e.y += dy; return; }
     if (!this.blocked(e.x + dx, e.y, e.radius)) e.x += dx;
     if (!this.blocked(e.x, e.y + dy, e.radius)) e.y += dy;
+  };
+
+  // Levitating: only true stone walls block you (float over water, trees, rock).
+  World.prototype.flyBlocked = function (x, y, radius) {
+    const wall = (px, py) => {
+      if (px < 0 || py < 0 || px >= this.w || py >= this.h) return true;
+      return this.grid[(py / TILE) | 0][(px / TILE) | 0] === WALL;
+    };
+    return wall(x - radius, y - radius) || wall(x + radius, y - radius) ||
+           wall(x - radius, y + radius) || wall(x + radius, y + radius);
+  };
+  World.prototype.moveFly = function (e, dx, dy) {
+    if (!this.flyBlocked(e.x + dx, e.y + dy, e.radius)) { e.x += dx; e.y += dy; return; }
+    if (!this.flyBlocked(e.x + dx, e.y, e.radius)) e.x += dx;
+    if (!this.flyBlocked(e.x, e.y + dy, e.radius)) e.y += dy;
   };
 
   // Which portal (if any) is the given world point standing on?

@@ -38,11 +38,13 @@
       dialogue: def.dialogue, greetingKey: def.greetingKey };
   };
 
-  // Capture the current zone's enemy state so it persists if we return.
+  // Capture the current zone's mutable state so it persists if we return.
   Game.prototype._stashZone = function () {
     if (!this.currentZone) return;
-    this.zoneState[this.currentZone] = this.enemies.map((e) =>
-      ({ hp: e.hp, dead: e.dead, x: e.x, y: e.y, aggro: e.aggro }));
+    this.zoneState[this.currentZone] = {
+      enemies: this.enemies.map((e) => ({ hp: e.hp, dead: e.dead, x: e.x, y: e.y, aggro: e.aggro })),
+      containers: this.containers.map((c) => c.opened)
+    };
   };
 
   // Build a zone and drop the player at the named entry.
@@ -61,11 +63,16 @@
     const saved = this.zoneState[id];
     this.enemies = this.world.spawns.enemies.map((s, i) => {
       const e = new RPG.Enemy(s.type, s.x, s.y);
-      if (saved && saved[i]) Object.assign(e, saved[i]);
+      if (saved && saved.enemies && saved.enemies[i]) Object.assign(e, saved.enemies[i]);
       return e;
     });
 
     this.npcs = this.world.spawns.npcs.map((s) => this._makeNpc(RPG.Npcs[s.id], s.x, s.y));
+
+    this.containers = this.world.spawns.containers.map((s, i) => ({
+      x: s.x, y: s.y, label: s.label, items: s.items,
+      opened: !!(saved && saved.containers && saved.containers[i])
+    }));
 
     this._portalLock = true;   // don't bounce straight back through the door
     this.ui.toast(this.world.name);
@@ -92,7 +99,7 @@
   Game.prototype._frame = function (t) {
     const dt = Math.min(0.05, (t - this.last) / 1000 || 0);
     this.last = t;
-    if (!this.overlayUp && !this.ui.dialogueOpen) this.update(dt);
+    if (!this.overlayUp && !this.ui.anyPanelOpen()) this.update(dt);
     this.fx.update(dt);
     this.renderer.draw(this, dt);
     this.ui.updateHud(this.player);
@@ -108,8 +115,12 @@
       const mv = this.input.moveVector();
       if (mv.dx || mv.dy) {
         const len = Math.hypot(mv.dx, mv.dy);
-        const step = p.moveSpeed * dt;
-        this.world.moveCircle(p, (mv.dx / len) * step, (mv.dy / len) * step);
+        // Fortify Speed makes you fleet; Levitate lets you float over water/trees.
+        const speed = p.moveSpeed + p.effMag("speed") * 1.6;
+        const step = speed * dt;
+        const fly = p.effMag("levitate") > 0;
+        const move = fly ? this.world.moveFly : this.world.moveCircle;
+        move.call(this.world, p, (mv.dx / len) * step, (mv.dy / len) * step);
         p.fatigue = Math.max(0, p.fatigue - 4 * dt);
         p.trainSkill("Athletics", 0.25 * dt, this.ui);
       }
@@ -118,10 +129,26 @@
 
     if (p.attackTimer > 0) p.attackTimer -= dt;
     if (p.hitFlash > 0) p.hitFlash -= dt;
+    p.tickEffects(dt);
     p.fatigue = Math.min(p.maxFatigue, p.fatigue + 9 * dt);
     p.magicka = Math.min(p.maxMagicka, p.magicka + 2.5 * dt);
 
     this._updateEnemies(dt);
+  };
+
+  // Reward for a kill: train was already given by the attack; grant vis (essence).
+  Game.prototype.onEnemyDefeated = function (e) {
+    this.ui.log(`The ${e.name} dies. <span class="roll">(+${e.def.xp} vis)</span>`, "good");
+    this.player.vis += e.def.xp;
+  };
+
+  // Cast a spell from a spellbook slot (number keys) or the selected spell.
+  Game.prototype.castSlot = function (i) {
+    const sp = this.player.knownSpells[i];
+    if (sp) { this.selectedSpell = i; RPG.Magic.cast(this, sp); }
+  };
+  Game.prototype.castSelected = function () {
+    this.castSlot(this.selectedSpell || 0);
   };
 
   // Walking onto a portal tile travels through it (unlocked); locked ones warn.
@@ -177,6 +204,11 @@
     }
     if (best) { this.ui.openDialogue(best, this); return; }
 
+    // Nearby unopened container?
+    for (const c of this.containers) {
+      if (!c.opened && Math.hypot(c.x - p.x, c.y - p.y) < 40) { this._openContainer(c); return; }
+    }
+
     let portal = null, pd = 40;
     for (const pt of this.world.portals) {
       const d = Math.hypot(pt.x - p.x, pt.y - p.y);
@@ -190,6 +222,16 @@
     this.ui.toast("Nothing to interact with here.");
   };
 
+  Game.prototype._openContainer = function (c) {
+    c.opened = true;
+    if (!c.items || !c.items.length) { this.ui.log(`The ${c.label} is empty.`, "miss"); return; }
+    c.items.forEach((defId) => {
+      const item = RPG.Items.weapon(defId);
+      if (item) { this.player.inventory.push(item); this.ui.log(`Found: ${item.name}.`, "good"); }
+    });
+    this.ui.toast(`Opened ${c.label}`);
+  };
+
   // ---------- Save / load ----------
   Game.prototype.save = function () {
     this._stashZone();
@@ -199,7 +241,10 @@
       zoneState: this.zoneState,
       player: {
         x: p.x, y: p.y, hp: p.hp, magicka: p.magicka, fatigue: p.fatigue,
-        level: p.level, attributes: p.attributes, skills: p.skills, equipped: p.equipped
+        level: p.level, attributes: p.attributes, skills: p.skills,
+        vis: p.vis, knownSpells: p.knownSpells,
+        inventory: p.inventory.map((it) => ({ kind: it.kind, defId: it.defId, name: it.name, enchant: it.enchant })),
+        equippedIndex: p.inventory.indexOf(p.equippedWeapon)
       }
     };
     this.ui.toast(RPG.Save.write(state) ? "Saved." : "Could not save (storage blocked).");
@@ -215,8 +260,14 @@
     const p = this.player, sp = s.player;
     Object.assign(p, {
       x: sp.x, y: sp.y, hp: sp.hp, magicka: sp.magicka, fatigue: sp.fatigue,
-      level: sp.level, equipped: sp.equipped, attributes: sp.attributes, skills: sp.skills, dead: false
+      level: sp.level, attributes: sp.attributes, skills: sp.skills, dead: false
     });
+    if (typeof sp.vis === "number") p.vis = sp.vis;
+    if (sp.knownSpells) p.knownSpells = sp.knownSpells;
+    if (sp.inventory) {
+      p.inventory = sp.inventory.map((it) => RPG.Items.fromSave(it)).filter(Boolean);
+      p.equippedWeapon = p.inventory[sp.equippedIndex] || p.inventory[0];
+    }
     p.recalc();
     this.ui.toast("Loaded.");
     this.ui.log("You resume your delve.", "good");
