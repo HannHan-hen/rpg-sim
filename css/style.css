@@ -1,0 +1,224 @@
+/* Ashfall — UI chrome. Graphics in the canvas are drawn entirely in code;
+   this stylesheet only dresses the HTML overlay (HUD, panels, log). */
+
+:root {
+  --ink: #e8e0cf;
+  --ink-dim: #b3a988;
+  --gold: #d9a441;
+  --parchment: #2a2418;
+  --parchment-2: #221d13;
+  --frame: #6b5836;
+  --health: #b5392f;
+  --magicka: #2f6fb5;
+  --fatigue: #3f9a52;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0a0907;
+  color: var(--ink);
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#game-shell {
+  position: relative;
+  width: 640px;
+  height: 400px;
+  box-shadow: 0 0 0 3px var(--frame), 0 0 40px rgba(0,0,0,0.9);
+  image-rendering: pixelated;
+}
+
+#screen {
+  display: block;
+  width: 640px;
+  height: 400px;
+  background: #05060a;
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+
+/* ---------- HUD ---------- */
+#hud {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  text-shadow: 0 1px 2px #000;
+}
+.bar-group { display: flex; flex-direction: column; gap: 3px; }
+.bar { display: flex; align-items: center; gap: 6px; }
+.bar-label { width: 56px; font-size: 11px; color: var(--ink-dim); }
+.bar-track {
+  width: 150px; height: 9px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid #000;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bar-fill { height: 100%; width: 100%; transition: width 160ms linear; }
+.bar-fill.health  { background: linear-gradient(#d6534a, var(--health)); }
+.bar-fill.magicka { background: linear-gradient(#4a90d6, var(--magicka)); }
+.bar-fill.fatigue { background: linear-gradient(#5bc06f, var(--fatigue)); }
+
+#level-chip {
+  background: rgba(0,0,0,0.55);
+  border: 1px solid var(--frame);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: var(--gold);
+}
+
+/* ---------- Message log ---------- */
+#log {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 320px;
+  max-height: 110px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.35;
+  text-shadow: 0 1px 2px #000;
+}
+#log .line { opacity: 0.95; }
+#log .line.fade { animation: fadein 200ms ease-out; }
+#log .roll { color: var(--ink-dim); }
+#log .hit { color: #e7c46a; }
+#log .miss { color: #9aa3ad; }
+#log .hurt { color: #e06a60; }
+#log .good { color: #7fd08c; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 0.95; } }
+
+/* ---------- Panels (sheet / dialogue) ---------- */
+.panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 360px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: linear-gradient(var(--parchment), var(--parchment-2));
+  border: 2px solid var(--frame);
+  border-radius: 4px;
+  padding: 14px 18px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+}
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: var(--gold);
+  border-bottom: 1px solid var(--frame);
+  padding-bottom: 6px;
+}
+.hint { font-size: 11px; color: var(--ink-dim); margin: 12px 0 0; }
+.hidden { display: none !important; }
+
+/* Character sheet contents */
+.stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
+.stat-row .v { color: var(--gold); }
+.section-title { color: var(--ink-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; }
+.skill-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 2px 0; }
+.skill-row .name { width: 90px; }
+.skill-row .skbar { flex: 1; height: 6px; background: rgba(0,0,0,0.5); border-radius: 2px; overflow: hidden; }
+.skill-row .skbar > div { height: 100%; background: var(--gold); }
+.skill-row .lvl { width: 24px; text-align: right; color: var(--gold); }
+
+/* Dialogue */
+#dlg-text { font-size: 13px; line-height: 1.5; font-style: italic; color: var(--ink); }
+#dlg-topics { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+#dlg-topics button {
+  text-align: left;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--frame);
+  color: var(--gold);
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+#dlg-topics button:hover { background: rgba(217,164,65,0.15); }
+
+/* ---------- Title overlay ---------- */
+#overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 35%, rgba(20,16,10,0.85), rgba(0,0,0,0.96));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+#overlay.hidden { display: none; }
+.overlay-inner { text-align: center; }
+.overlay-inner h1 {
+  font-size: 52px;
+  margin: 0;
+  letter-spacing: 10px;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(217,164,65,0.4), 0 3px 0 #000;
+}
+.overlay-inner .subtitle { color: var(--ink-dim); margin: 4px 0 26px; font-style: italic; }
+.overlay-inner button {
+  display: block;
+  margin: 8px auto;
+  width: 220px;
+  padding: 10px;
+  font-size: 14px;
+  background: linear-gradient(var(--parchment), var(--parchment-2));
+  border: 1px solid var(--frame);
+  color: var(--ink);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.overlay-inner button:hover { border-color: var(--gold); color: var(--gold); }
+.controls {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+.controls b { color: var(--ink); margin-bottom: 4px; }
+kbd {
+  display: inline-block;
+  background: #1a1610;
+  border: 1px solid var(--frame);
+  border-radius: 3px;
+  padding: 0 5px;
+  margin: 0 1px;
+  font-family: monospace;
+  font-size: 11px;
+}
+.toast {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 3px;
+  z-index: 15;
+  pointer-events: none;
+}

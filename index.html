@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ashfall — a tiny RPG</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="game-shell">
+    <canvas id="screen" width="640" height="400"></canvas>
+
+    <!-- Heads-up display -->
+    <div id="hud">
+      <div class="bar-group">
+        <div class="bar"><div class="bar-label">Health</div><div class="bar-track"><div id="bar-health" class="bar-fill health"></div></div></div>
+        <div class="bar"><div class="bar-label">Magicka</div><div class="bar-track"><div id="bar-magicka" class="bar-fill magicka"></div></div></div>
+        <div class="bar"><div class="bar-label">Fatigue</div><div class="bar-track"><div id="bar-fatigue" class="bar-fill fatigue"></div></div></div>
+      </div>
+      <div id="level-chip">Lvl <span id="level-num">1</span></div>
+    </div>
+
+    <!-- Scrolling message log -->
+    <div id="log"></div>
+
+    <!-- Character sheet (toggle with C) -->
+    <div id="sheet" class="panel hidden">
+      <h2>Character</h2>
+      <div id="sheet-body"></div>
+      <p class="hint">Press <b>C</b> to close</p>
+    </div>
+
+    <!-- Dialogue box (toggle with E near an NPC) -->
+    <div id="dialogue" class="panel hidden">
+      <h2 id="dlg-name">Stranger</h2>
+      <p id="dlg-text"></p>
+      <div id="dlg-topics"></div>
+      <p class="hint">Press <b>E</b> or <b>Esc</b> to leave</p>
+    </div>
+
+    <!-- Title / pause overlay -->
+    <div id="overlay">
+      <div class="overlay-inner">
+        <h1>ASHFALL</h1>
+        <p class="subtitle">a tiny dice-driven RPG</p>
+        <button id="btn-start">Enter the world</button>
+        <button id="btn-load">Continue (load save)</button>
+        <div class="controls">
+          <b>Controls</b>
+          <span>Move — <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</span>
+          <span>Attack — <kbd>click</kbd> (the dice decide)</span>
+          <span>Talk / interact — <kbd>E</kbd></span>
+          <span>Character sheet — <kbd>C</kbd></span>
+          <span>Save — <kbd>F5</kbd> &nbsp; Load — <kbd>F9</kbd></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plain (non-module) scripts so the game also runs by double-clicking index.html -->
+  <script src="js/rng.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
