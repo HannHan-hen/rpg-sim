@@ -20,6 +20,7 @@
     };
 
     this.quests = {};                // questId -> { stage, progress, done }
+    this.guilds = {};                // guildId -> { rank, rep }
 
     this.skills = {};                // name -> { level, xp }
     for (const name in Data.skills) this.skills[name] = { level: 5, xp: 0 };

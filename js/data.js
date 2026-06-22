@@ -122,8 +122,36 @@
           { desc: "Slay the Bonewalker in the Sunken Cave.", objective: { type: "kill", target: "skeleton", zone: "sunken_cave", count: 1 } }
         ],
         reward: { vis: 25, spell: "saints_mending" }
+      },
+      gw_wolves: {
+        name: "Wolves on the Reach Road",
+        giver: "steward", guild: "wardens",
+        summary: "The Wardens' Concord asked you to cull the wolves harrying the Reach Road.",
+        stages: [
+          { desc: "Cull 3 Ashen Wolves on the Reach Road.", objective: { type: "kill", target: "wolf", zone: "reach_road", count: 3 } }
+        ],
+        reward: { vis: 20, guild: { id: "wardens", rank: 1 } }
+      },
+      gw_toll: {
+        name: "The Bandit Toll",
+        giver: "steward", guild: "wardens",
+        summary: "Bandits are taxing the road south. The Concord wants their chief dealt with.",
+        stages: [
+          { desc: "Slay the Bandit Chief at the camp east of Greenhollow.", objective: { type: "kill", target: "bandit_chief", zone: "bandit_camp", count: 1 } }
+        ],
+        reward: { vis: 40, spell: "guardians_fury", guild: { id: "wardens", rank: 2 } }
       }
     },
+
+    // Guilds: a faction per city, with ranks you climb through their questline.
+    guilds: {
+      wardens: {
+        name: "the Wardens' Concord", town: "Greenhollow",
+        blurb: "Lawful protectors of the Tilled Reaches — they keep roads safe and ledgers honest.",
+        ranks: ["Associate", "Hand", "Warden", "Marshal"]
+      }
+    },
+
 
     // Character creation: the crime that got you banished shapes your build.
     backgrounds: {
@@ -169,6 +197,21 @@
         name: "Bonewalker", maxHp: 38, speed: 52, color: "#dad2c2",
         attackSkill: 45, evasion: 22, damage: [4, 9], reach: 28,
         attackCooldown: 1.2, xp: 20, radius: 11, aggroRange: 210
+      },
+      wolf: {
+        name: "Ashen Wolf", maxHp: 18, speed: 66, color: "#8a8276",
+        attackSkill: 34, evasion: 20, damage: [2, 5], reach: 22,
+        attackCooldown: 0.9, xp: 8, radius: 10, aggroRange: 210
+      },
+      bandit: {
+        name: "Bandit", maxHp: 26, speed: 50, color: "#9a6b4a",
+        attackSkill: 40, evasion: 18, damage: [3, 7], reach: 26,
+        attackCooldown: 1.1, xp: 12, radius: 10, aggroRange: 190
+      },
+      bandit_chief: {
+        name: "Bandit Chief", maxHp: 60, speed: 52, color: "#b5482f",
+        attackSkill: 55, evasion: 24, damage: [6, 12], reach: 30,
+        attackCooldown: 1.1, xp: 35, radius: 12, aggroRange: 250
       }
     }
   };

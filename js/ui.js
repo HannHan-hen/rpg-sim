@@ -107,9 +107,13 @@
     this.showTopic(npc, npc.greetingKey || "greeting", game);
   };
 
-  UI.prototype._meetsReq = function (npc, req) {
+  UI.prototype._meetsReq = function (npc, req, game) {
     if (!req) return true;
     if (req.disp != null && npc.disposition < req.disp) return false;
+    if (req.notGuild && game.player.guilds[req.notGuild]) return false;
+    if (req.guild && !game.player.guilds[req.guild]) return false;
+    if (req.noQuest && game.player.quests[req.noQuest]) return false;   // hide once started/done
+    if (req.questDone && !(game.player.quests[req.questDone] && game.player.quests[req.questDone].done)) return false;
     return true;
   };
 
@@ -124,7 +128,7 @@
     this.el.dlgText.textContent = node.text;
     this.el.dlgTopics.innerHTML = "";
     (node.topics || []).forEach((t) => {
-      if (!this._meetsReq(npc, t.req)) return;       // gated topics hidden until earned
+      if (!this._meetsReq(npc, t.req, game)) return;  // gated topics hidden until earned
       const btn = document.createElement("button");
       btn.textContent = t.label;
       btn.onclick = () => {
@@ -321,7 +325,19 @@
 
   UI.prototype.renderJournal = function (game) {
     if (this.jrnTab === "map") return this._renderMap(game);
+    if (this.jrnTab === "guilds") return this._renderGuilds(game);
     return this._renderQuests(game);
+  };
+
+  UI.prototype._renderGuilds = function (game) {
+    const ids = Object.keys(game.player.guilds);
+    let h = "";
+    if (!ids.length) h = '<p class="hint">You belong to no guild. Seek them in the cities.</p>';
+    ids.forEach((id) => {
+      const g = Data.guilds[id], m = game.player.guilds[id];
+      h += `<div class="quest"><b>${g.name}</b><br><small>Rank: ${g.ranks[m.rank]} &nbsp;·&nbsp; ${g.town}</small><br><small class="hint">${g.blurb}</small></div>`;
+    });
+    this.el.jrnBody.innerHTML = h;
   };
 
   UI.prototype._renderQuests = function (game) {

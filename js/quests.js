@@ -56,6 +56,7 @@
       game.ui.log(`Quest complete: ${q.name}!`, "good");
       const r = q.reward || {};
       if (r.vis) { game.player.vis += r.vis; game.ui.log(`Reward: ${r.vis} vis.`, "good"); }
+      if (r.guild) RPG.Guilds.setRank(game, r.guild.id, r.guild.rank);
       if (r.spell) {
         const v = Data.vendorSpells[r.spell];
         if (v && !game.player.knownSpells.some((s) => s.name === v.name)) {

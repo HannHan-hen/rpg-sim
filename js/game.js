@@ -294,6 +294,8 @@
     this.ui.log(`You learn ${v.name}! (${v.cost} mp; paid ${price} vis${saved > 0 ? ", " + saved + " off for friendship" : ""}.)`, "good");
   };
 
+  Game.prototype.joinGuild = function (id) { RPG.Guilds.join(this, id); };
+
   // Cast a spell from a spellbook slot (number keys) or the selected spell.
   Game.prototype.castSlot = function (i) {
     const sp = this.player.knownSpells[i];
@@ -399,7 +401,7 @@
       player: {
         x: p.x, y: p.y, hp: p.hp, magicka: p.magicka, fatigue: p.fatigue,
         level: p.level, attributes: p.attributes, skills: p.skills,
-        vis: p.vis, knownSpells: p.knownSpells, quests: p.quests,
+        vis: p.vis, knownSpells: p.knownSpells, quests: p.quests, guilds: p.guilds,
         inventory: p.inventory.map((it) => ({ kind: it.kind, defId: it.defId, name: it.name, enchant: it.enchant })),
         equippedIndex: p.inventory.indexOf(p.equippedWeapon)
       }
@@ -424,6 +426,7 @@
     if (typeof sp.vis === "number") p.vis = sp.vis;
     if (sp.knownSpells) p.knownSpells = sp.knownSpells;
     if (sp.quests) p.quests = sp.quests;
+    if (sp.guilds) p.guilds = sp.guilds;
     if (sp.inventory) {
       p.inventory = sp.inventory.map((it) => RPG.Items.fromSave(it)).filter(Boolean);
       p.equippedWeapon = p.inventory[sp.equippedIndex] || p.inventory[0];

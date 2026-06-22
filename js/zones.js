@@ -138,6 +138,45 @@
           topics: [{ label: "Back.", goto: "greeting" }]
         }
       }
+    },
+
+    steward: {
+      name: "Steward Aldra of the Concord",
+      disposition: 45,
+      dialogue: {
+        greeting: {
+          text: "\"Greenhollow keeps the old law out here, prisoner or no. The Wardens' Concord sees the roads safe and the ledgers straight. We can always use another pair of hands — if yours are willing.\"",
+          topics: [
+            { label: "I'd join the Wardens' Concord.", req: { notGuild: "wardens" }, action: (g, n, ui) => { g.joinGuild("wardens"); ui.showTopic(n, "greeting", g); } },
+            { label: "Is there work? (Wolves on the Reach Road)", req: { guild: "wardens", noQuest: "gw_wolves" }, action: (g, n, ui) => { RPG.Quests.start(g, "gw_wolves"); ui.showTopic(n, "greeting", g); } },
+            { label: "More work? (The Bandit Toll)", req: { questDone: "gw_wolves", noQuest: "gw_toll" }, action: (g, n, ui) => { RPG.Quests.start(g, "gw_toll"); ui.showTopic(n, "greeting", g); } },
+            { label: "What is the Concord?", goto: "about" },
+            { label: "Farewell.", action: (g, n, ui) => ui.closeDialogue() }
+          ]
+        },
+        about: {
+          text: "\"Merchants, farmers, and the odd retired sell-sword who'd rather mend a fence than rob one. We're no army, but we're the reason the Reaches aren't the West. Do right by us and you'll rise: Associate, Hand, Warden, Marshal.\"",
+          topics: [{ label: "Back.", goto: "greeting" }]
+        }
+      }
+    },
+
+    villager: {
+      name: "Old Pell",
+      disposition: 40,
+      dialogue: {
+        greeting: {
+          text: "\"New off the barge? Keep your nose clean here and Greenhollow's a fair place. East past the fields there's a bandit camp been bleeding us white — Steward Aldra's fixing to do something about it, if she finds the spine. Or the help.\"",
+          topics: [
+            { label: "Tell me about Greenhollow.", goto: "town" },
+            { label: "Farewell.", action: (g, n, ui) => ui.closeDialogue() }
+          ]
+        },
+        town: {
+          text: "\"Quiet town, good soil, honest folk — by Pit standards. The Concord keeps order. Beyond us the road runs inland to the Capital, but that's a meaner place by all accounts.\"",
+          topics: [{ label: "Back.", goto: "greeting" }]
+        }
+      }
     }
   };
 
@@ -223,11 +262,11 @@
         "%..%.......%......%....%",
         "%%%%%%%%%%%%%%%%%%%%%%%%"
       ],
-      entries: { from_town: [3, 7], from_cave: [17, 7] },
+      entries: { from_town: [3, 7], from_cave: [17, 7], from_reach: [12, 8] },
       portals: {
         "1": { to: "harbor_town", entry: "from_road" },
         "2": { to: "sunken_cave", entry: "mouth" },
-        "3": { locked: true, label: "The King's road south, toward the Capital. (Not yet — coming soon.)" }
+        "3": { to: "reach_road", entry: "from_north" }
       },
       npcs: [],
       enemies: [{ type: "rat", at: [8, 5] }, { type: "scrib", at: [15, 8] }]
@@ -258,6 +297,91 @@
       npcs: [],
       enemies: [{ type: "skeleton", at: [16, 8] }, { type: "rat", at: [6, 10] }],
       containers: [{ at: [11, 6], label: "Ancient Reliquary", items: ["ashbrand"] }]
+    },
+
+    // ---- The Tilled Reaches (south region) ----
+    reach_road: {
+      id: "reach_road",
+      name: "The Reach Road",
+      ambient: { darkness: 0.20, ground: [56, 70, 40], light: 175 },
+      rows: [
+        "%%%%%%%%%%%%%%%%%%%%%%%%",
+        "%......................%",
+        "%..%%....%%....%%......%",
+        "%......................%",
+        "1......................%",
+        "%......................%",
+        "%....o..........o......%",
+        "%......................%",
+        "%......................%",
+        "%..%%....%%....%%......%",
+        "%......................%",
+        "%..........2...........%",
+        "%%%%%%%%%%%%%%%%%%%%%%%%"
+      ],
+      entries: { from_north: [2, 4], from_town: [11, 9] },
+      portals: {
+        "1": { to: "coast_road", entry: "from_reach" },
+        "2": { to: "greenhollow", entry: "from_road" }
+      },
+      npcs: [],
+      enemies: [{ type: "wolf", at: [6, 5] }, { type: "wolf", at: [16, 5] }, { type: "wolf", at: [10, 7] }]
+    },
+
+    greenhollow: {
+      id: "greenhollow",
+      name: "Greenhollow",
+      ambient: { darkness: 0.18, ground: [50, 68, 42], light: 180 },
+      rows: [
+        "%%%%%%%%%%%%%%%%%%%%%%%%",
+        "%......................%",
+        "%..####.......####.....%",
+        "%..####.......####.....%",
+        "%......................%",
+        "%......................%",
+        "1......................2",
+        "%......................%",
+        "%.....####....####.....%",
+        "%.....####....####.....%",
+        "%......................%",
+        "%..........3...........%",
+        "%......................%",
+        "%%%%%%%%%%%%%%%%%%%%%%%%"
+      ],
+      entries: { from_road: [2, 6], from_camp: [21, 6] },
+      portals: {
+        "1": { to: "reach_road", entry: "from_town" },
+        "2": { to: "bandit_camp", entry: "mouth" },
+        "3": { locked: true, label: "The inland road to the Capital, Cinderhold. (Not yet — coming soon.)" }
+      },
+      npcs: [{ at: [11, 5], id: "steward" }, { at: [4, 7], id: "villager" }],
+      enemies: []
+    },
+
+    bandit_camp: {
+      id: "bandit_camp",
+      name: "The Bandit Camp",
+      ambient: { darkness: 0.26, ground: [48, 54, 36], light: 165 },
+      rows: [
+        "%%%%%%%%%%%%%%%%%%%%%%%%",
+        "%......................%",
+        "%...o......o.....o.....%",
+        "%......................%",
+        "1......................%",
+        "%......................%",
+        "%......####............%",
+        "%......####............%",
+        "%......................%",
+        "%...o..........o.......%",
+        "%......................%",
+        "%......................%",
+        "%%%%%%%%%%%%%%%%%%%%%%%%"
+      ],
+      entries: { mouth: [2, 4] },
+      portals: { "1": { to: "greenhollow", entry: "from_camp" } },
+      npcs: [],
+      enemies: [{ type: "bandit", at: [10, 5] }, { type: "bandit", at: [15, 8] }, { type: "bandit_chief", at: [16, 10] }],
+      containers: [{ at: [13, 5], label: "Bandit Strongbox", items: ["iron_sword"] }]
     }
   };
 })(window.RPG = window.RPG || {});
