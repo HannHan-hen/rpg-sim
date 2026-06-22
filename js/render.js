@@ -1,14 +1,13 @@
-/* render.js — all graphics are drawn here, in code. No image files.
-   The "pretty" comes from: layered floor tinting, faux-depth walls,
-   flickering torch light carved out of a darkness overlay, and particles.
-   It's deliberately cheap so it runs on a weak machine. */
+/* render.js — all graphics, drawn in code. Now zone-aware: ground colour,
+   darkness, and light radius come from the active zone's ambient, so a sunlit
+   harbor and a black cave use the same cheap primitives to very different effect. */
 
 (function (RPG) {
   "use strict";
 
   const TILE = RPG.TILE;
+  const T = RPG.TILES;
 
-  // Stable per-tile pseudo-random in [0,1) so floor detail doesn't shimmer.
   function hash2(c, r) {
     let h = (c * 374761393 + r * 668265263) ^ 0x9e3779b9;
     h = (h ^ (h >>> 13)) * 1274126177;
@@ -17,7 +16,6 @@
 
   // ---------- Particle / effect system ----------
   function FX() { this.parts = []; this.swings = []; }
-
   FX.prototype.swing = function (x, y, angle, reach) {
     this.swings.push({ x, y, angle, reach, life: 0.18, max: 0.18 });
   };
@@ -73,7 +71,6 @@
     this.time += dt;
     const ctx = this.ctx, world = game.world, cam = this.cam;
     this.centerOn(game.player, world);
-
     ctx.clearRect(0, 0, this.W, this.H);
 
     const c0 = Math.max(0, (cam.x / TILE) | 0);
@@ -81,31 +78,25 @@
     const c1 = Math.min(world.cols - 1, ((cam.x + this.W) / TILE | 0) + 1);
     const r1 = Math.min(world.rows - 1, ((cam.y + this.H) / TILE | 0) + 1);
 
-    // Floor
+    // Ground first (every cell gets a floor underlay so blockers sit on it).
+    for (let r = r0; r <= r1; r++)
+      for (let c = c0; c <= c1; c++)
+        if (world.grid[r][c] !== T.WALL) this._floorTile(ctx, c, r, world);
+
+    // Blocking terrain on top.
     for (let r = r0; r <= r1; r++) {
       for (let c = c0; c <= c1; c++) {
-        if (world.grid[r][c] === 1) continue;
-        this._floorTile(ctx, c, r, world);
-      }
-    }
-    // Walls (drawn after floor so faux-depth faces overlap correctly)
-    for (let r = r0; r <= r1; r++) {
-      for (let c = c0; c <= c1; c++) {
-        if (world.grid[r][c] !== 1) continue;
-        this._wallTile(ctx, c, r, world);
+        const v = world.grid[r][c];
+        if (v === T.WALL) this._wallTile(ctx, c, r, world);
+        else if (v === T.WATER) this._waterTile(ctx, c, r);
+        else if (v === T.TREE) this._treeTile(ctx, c, r);
+        else if (v === T.ROCK) this._rockTile(ctx, c, r);
       }
     }
 
-    // Exit door
-    if (world.spawns.exit) {
-      const e = world.spawns.exit;
-      ctx.fillStyle = "#1a120a";
-      ctx.fillRect(e.x - cam.x - 11, e.y - cam.y - 15, 22, 30);
-      ctx.strokeStyle = "#caa24a"; ctx.lineWidth = 2;
-      ctx.strokeRect(e.x - cam.x - 11, e.y - cam.y - 15, 22, 30);
-    }
+    this._drawPortals(ctx, world);
 
-    // Entities, depth-sorted by y
+    // Entities, depth-sorted by y.
     const ents = [];
     for (const e of game.enemies) if (!e.dead) ents.push(e);
     for (const n of game.npcs) ents.push(n);
@@ -117,62 +108,92 @@
       else this._drawEnemy(ctx, e);
     }
 
-    // Swing arcs + particles
     this._drawSwings(ctx, game.fx);
     this._drawParticles(ctx, game.fx);
-
-    // Lighting pass last
     this._lighting(game, world);
   };
 
   Renderer.prototype._floorTile = function (ctx, c, r, world) {
     const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    const g = world.ambient.ground;
     const n = hash2(c, r);
-    // Base flagstone with subtle per-tile tint variation.
-    const shade = 26 + Math.floor(n * 14);
-    ctx.fillStyle = `rgb(${shade + 8},${shade + 4},${shade - 2})`;
+    const j = Math.floor(n * 16) - 6;
+    ctx.fillStyle = `rgb(${g[0] + j},${g[1] + j},${g[2] + j})`;
     ctx.fillRect(x, y, TILE, TILE);
-    // Grout lines.
-    ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1);
-    // Occasional crack / pebble for texture.
-    if (n > 0.82) {
-      ctx.strokeStyle = "rgba(0,0,0,0.4)";
-      ctx.beginPath();
-      ctx.moveTo(x + 4 + n * 18, y + 6);
-      ctx.lineTo(x + 10 + n * 12, y + 24);
-      ctx.stroke();
+    if (n > 0.86) {
+      ctx.strokeStyle = "rgba(0,0,0,0.3)";
+      ctx.beginPath(); ctx.moveTo(x + 4 + n * 18, y + 6); ctx.lineTo(x + 10 + n * 12, y + 24); ctx.stroke();
     }
     if (world.rubble[r][c]) {
-      ctx.fillStyle = "rgba(90,78,60,0.5)";
-      for (let i = 0; i < 4; i++) {
-        const px = x + 4 + hash2(c * 7 + i, r) * 22;
-        const py = y + 4 + hash2(c, r * 7 + i) * 22;
-        ctx.fillRect(px, py, 3, 3);
-      }
+      ctx.fillStyle = "rgba(90,78,60,0.6)";
+      for (let i = 0; i < 4; i++)
+        ctx.fillRect(x + 4 + hash2(c * 7 + i, r) * 22, y + 4 + hash2(c, r * 7 + i) * 22, 3, 3);
     }
   };
 
   Renderer.prototype._wallTile = function (ctx, c, r, world) {
     const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
-    const southFloor = r + 1 < world.rows && world.grid[r + 1][c] === 0;
-    // Wall body.
-    ctx.fillStyle = "#2c2620";
-    ctx.fillRect(x, y, TILE, TILE);
-    // Brick courses.
+    const southFloor = r + 1 < world.rows && world.grid[r + 1][c] === T.FLOOR;
+    ctx.fillStyle = "#2c2620"; ctx.fillRect(x, y, TILE, TILE);
     ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
-    for (let by = 0; by < TILE; by += 8) {
-      ctx.beginPath(); ctx.moveTo(x, y + by + 0.5); ctx.lineTo(x + TILE, y + by + 0.5); ctx.stroke();
-    }
-    // Top highlight (catches the light).
-    ctx.fillStyle = "rgba(120,104,80,0.4)";
-    ctx.fillRect(x, y, TILE, 3);
-    // Faux-depth face + drop shadow where a wall meets floor to the south.
+    for (let by = 0; by < TILE; by += 8) { ctx.beginPath(); ctx.moveTo(x, y + by + 0.5); ctx.lineTo(x + TILE, y + by + 0.5); ctx.stroke(); }
+    ctx.fillStyle = "rgba(120,104,80,0.4)"; ctx.fillRect(x, y, TILE, 3);
     if (southFloor) {
-      ctx.fillStyle = "#211c17";
-      ctx.fillRect(x, y + TILE - 6, TILE, 6);
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.fillRect(x, y + TILE, TILE, 6);
+      ctx.fillStyle = "#211c17"; ctx.fillRect(x, y + TILE - 6, TILE, 6);
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(x, y + TILE, TILE, 6);
+    }
+  };
+
+  Renderer.prototype._waterTile = function (ctx, c, r) {
+    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    ctx.fillStyle = "#243a55"; ctx.fillRect(x, y, TILE, TILE);
+    // Gentle shimmer.
+    ctx.strokeStyle = "rgba(150,190,220,0.25)"; ctx.lineWidth = 1;
+    for (let i = 0; i < 2; i++) {
+      const yy = y + 9 + i * 12 + Math.sin(this.time * 1.6 + c + i) * 2;
+      ctx.beginPath(); ctx.moveTo(x + 3, yy); ctx.lineTo(x + TILE - 3, yy); ctx.stroke();
+    }
+  };
+
+  Renderer.prototype._treeTile = function (ctx, c, r) {
+    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    const n = hash2(c, r);
+    ctx.fillStyle = "#3a2c1c"; ctx.fillRect(x + TILE / 2 - 2, y + TILE - 12, 4, 12); // trunk
+    const cr = 11 + n * 2;
+    ctx.fillStyle = "#24401f";
+    ctx.beginPath(); ctx.arc(x + TILE / 2, y + TILE / 2 - 1, cr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#2f5527";
+    ctx.beginPath(); ctx.arc(x + TILE / 2 - 3, y + TILE / 2 - 4, cr * 0.6, 0, Math.PI * 2); ctx.fill();
+  };
+
+  Renderer.prototype._rockTile = function (ctx, c, r) {
+    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    ctx.fillStyle = "#5b554c";
+    ctx.beginPath(); ctx.ellipse(x + TILE / 2, y + TILE / 2 + 2, 12, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#6f6a60";
+    ctx.beginPath(); ctx.ellipse(x + TILE / 2 - 2, y + TILE / 2 - 1, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+  };
+
+  Renderer.prototype._drawPortals = function (ctx, world) {
+    for (const p of world.portals) {
+      const x = p.x - this.cam.x, y = p.y - this.cam.y;
+      if (p.locked) {
+        ctx.fillStyle = "#1a120a"; ctx.fillRect(x - 11, y - 14, 22, 28);
+        ctx.strokeStyle = "#7a3a32"; ctx.lineWidth = 2; ctx.strokeRect(x - 11, y - 14, 22, 28);
+        ctx.beginPath(); ctx.moveTo(x - 8, y - 10); ctx.lineTo(x + 8, y + 10);
+        ctx.moveTo(x + 8, y - 10); ctx.lineTo(x - 8, y + 10); ctx.stroke();
+      } else {
+        ctx.fillStyle = "#0d0a06"; ctx.fillRect(x - 11, y - 14, 22, 28);
+        ctx.strokeStyle = "#caa24a"; ctx.lineWidth = 2; ctx.strokeRect(x - 11, y - 14, 22, 28);
+        // Inviting glow.
+        ctx.globalCompositeOperation = "lighter";
+        const g = ctx.createRadialGradient(x, y, 0, x, y, 22);
+        g.addColorStop(0, "rgba(210,170,80,0.25)"); g.addColorStop(1, "rgba(210,170,80,0)");
+        ctx.fillStyle = g; ctx.fillRect(x - 22, y - 22, 44, 44);
+        ctx.globalCompositeOperation = "source-over";
+      }
     }
   };
 
@@ -186,14 +207,11 @@
   Renderer.prototype._drawPlayer = function (ctx, p) {
     this._shadow(ctx, p);
     const x = p.x - this.cam.x, y = p.y - this.cam.y;
-    // Body
     ctx.fillStyle = p.hitFlash > 0 ? "#ffd9d2" : p.color;
     ctx.beginPath(); ctx.arc(x, y, p.radius, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#3a3024"; ctx.lineWidth = 2; ctx.stroke();
-    // Cloak/back
     ctx.fillStyle = "#5b4a8a";
     ctx.beginPath(); ctx.arc(x, y, p.radius - 3, 0, Math.PI * 2); ctx.fill();
-    // Facing indicator (a little blade-tip nub)
     ctx.fillStyle = "#e8e0cf";
     ctx.beginPath();
     ctx.arc(x + Math.cos(p.facing) * (p.radius + 2), y + Math.sin(p.facing) * (p.radius + 2), 3, 0, Math.PI * 2);
@@ -206,11 +224,8 @@
     ctx.fillStyle = e.hitFlash > 0 ? "#ffffff" : e.color;
     ctx.beginPath(); ctx.arc(x, y, e.radius, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 2; ctx.stroke();
-    // Eyes — a little menace.
     ctx.fillStyle = e.aggro ? "#ff5640" : "#1a1a1a";
-    ctx.fillRect(x - 4, y - 2, 2, 2);
-    ctx.fillRect(x + 2, y - 2, 2, 2);
-    // HP pip bar when hurt.
+    ctx.fillRect(x - 4, y - 2, 2, 2); ctx.fillRect(x + 2, y - 2, 2, 2);
     if (e.hp < e.maxHp) {
       const w = e.radius * 2;
       ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x - e.radius, y - e.radius - 7, w, 3);
@@ -224,11 +239,8 @@
     ctx.fillStyle = "#b9a05a";
     ctx.beginPath(); ctx.arc(x, y, n.radius, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#3a3024"; ctx.lineWidth = 2; ctx.stroke();
-    // Floating "talk" marker.
     const bob = Math.sin(this.time * 3) * 2;
-    ctx.fillStyle = "#d9a441";
-    ctx.font = "bold 14px serif";
-    ctx.textAlign = "center";
+    ctx.fillStyle = "#d9a441"; ctx.font = "bold 14px serif"; ctx.textAlign = "center";
     ctx.fillText("!", x, y - n.radius - 6 + bob);
     ctx.textAlign = "left";
   };
@@ -236,8 +248,7 @@
   Renderer.prototype._drawSwings = function (ctx, fx) {
     for (const s of fx.swings) {
       const t = s.life / s.max;
-      ctx.strokeStyle = `rgba(255,255,255,${0.5 * t})`;
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = `rgba(255,255,255,${0.5 * t})`; ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(s.x - this.cam.x, s.y - this.cam.y, s.reach, s.angle - 0.6, s.angle + 0.6);
       ctx.stroke();
@@ -254,55 +265,45 @@
   };
 
   // Darkness overlay with light carved out around torches + the player.
+  // Zone ambient.darkness controls how black it gets (cave vs. daylight).
   Renderer.prototype._lighting = function (game, world) {
+    const amb = world.ambient;
     const l = this.lctx;
     l.globalCompositeOperation = "source-over";
-    l.fillStyle = "rgba(6,6,12,0.82)";
+    l.clearRect(0, 0, this.W, this.H);
+    l.fillStyle = `rgba(6,6,12,${amb.darkness})`;
     l.fillRect(0, 0, this.W, this.H);
 
     l.globalCompositeOperation = "destination-out";
-
     const carve = (x, y, radius, strength) => {
       const sx = x - this.cam.x, sy = y - this.cam.y;
       const g = l.createRadialGradient(sx, sy, 0, sx, sy, radius);
-      g.addColorStop(0, `rgba(0,0,0,${strength})`);
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      l.fillStyle = g;
-      l.fillRect(sx - radius, sy - radius, radius * 2, radius * 2);
+      g.addColorStop(0, `rgba(0,0,0,${strength})`); g.addColorStop(1, "rgba(0,0,0,0)");
+      l.fillStyle = g; l.fillRect(sx - radius, sy - radius, radius * 2, radius * 2);
     };
-
-    // Player carries a soft light.
-    carve(game.player.x, game.player.y, 150, 0.95);
-
-    // Torches flicker.
+    carve(game.player.x, game.player.y, amb.light, 0.95);
     for (const t of world.torches) {
       const flick = 0.85 + Math.sin(this.time * 9 + t.x) * 0.08 + Math.random() * 0.04;
       carve(t.x, t.y, 95 * flick, 1.0);
     }
-
     this.ctx.drawImage(this.light, 0, 0);
 
-    // Warm additive glow + torch flame sprites on top of the darkness.
+    // Warm torch glow + flame nubs on top.
     const ctx = this.ctx;
     ctx.globalCompositeOperation = "lighter";
     for (const t of world.torches) {
       const sx = t.x - this.cam.x, sy = t.y - this.cam.y;
       const flick = 0.8 + Math.sin(this.time * 9 + t.x) * 0.2;
       const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 70 * flick);
-      g.addColorStop(0, "rgba(255,150,40,0.35)");
-      g.addColorStop(1, "rgba(255,150,40,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(sx - 70, sy - 70, 140, 140);
+      g.addColorStop(0, "rgba(255,150,40,0.35)"); g.addColorStop(1, "rgba(255,150,40,0)");
+      ctx.fillStyle = g; ctx.fillRect(sx - 70, sy - 70, 140, 140);
     }
     ctx.globalCompositeOperation = "source-over";
-    // Flame nubs.
     for (const t of world.torches) {
       const sx = t.x - this.cam.x, sy = t.y - this.cam.y;
       const h = 6 + Math.sin(this.time * 12 + t.y) * 2;
-      ctx.fillStyle = "#ffcf6b";
-      ctx.beginPath(); ctx.ellipse(sx, sy - 2, 3, h, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#ff7a1a";
-      ctx.beginPath(); ctx.ellipse(sx, sy, 2, h * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffcf6b"; ctx.beginPath(); ctx.ellipse(sx, sy - 2, 3, h, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ff7a1a"; ctx.beginPath(); ctx.ellipse(sx, sy, 2, h * 0.6, 0, 0, Math.PI * 2); ctx.fill();
     }
   };
 

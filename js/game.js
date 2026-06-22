@@ -1,6 +1,6 @@
-/* game.js — wires everything together: world, player, enemies, NPCs, the
-   render loop, enemy AI, interaction, and save/load. This is the conductor;
-   the systems it calls live in the other files. */
+/* game.js — the conductor. Owns the persistent player, the active zone, travel
+   between zones, enemy AI, interaction, and save/load. Zones come and go; the
+   player and the per-zone state persist. */
 
 (function (RPG) {
   "use strict";
@@ -13,61 +13,75 @@
     this.overlayUp = true;
     this.last = 0;
 
+    this.player = new RPG.Player(0, 0);   // persists across zones
+    this.zoneState = {};                  // zoneId -> saved enemy states
+    this.currentZone = null;
+    this._portalLock = false;             // prevents instant re-trigger on arrival
+
     this.input = new RPG.Input(this);
     this._bindOverlay();
-    this.reset();
+    this.newGame();
 
-    // Render loop runs continuously; the world only ticks once you've entered.
     requestAnimationFrame((t) => this._frame(t));
   }
 
-  // Build a fresh world + actors.
-  Game.prototype.reset = function () {
+  // Start a fresh run at the landing.
+  Game.prototype.newGame = function () {
     RPG.RNG.reseed((Math.random() * 1e9) | 0);
-    this.world = new RPG.World();
-    const sp = this.world.spawns;
-    this.player = new RPG.Player(sp.player.x, sp.player.y);
-    this.enemies = sp.enemies.map((e) => new RPG.Enemy(e.type, e.x, e.y));
-    this.npcs = sp.npcs.map((n) => this._makeNpc(n.x, n.y));
-    this.fx = new RPG.FX();
+    this.player = new RPG.Player(0, 0);
+    this.zoneState = {};
+    this.loadZone("port_landing", "start");
   };
 
-  Game.prototype._makeNpc = function (x, y) {
-    const npc = {
-      name: "Telvi the Watcher", x, y, radius: 10, isNpc: true,
-      dialogue: {
-        greeting: {
-          text: "\"You woke at last. The ash took your name but not your sword-arm. Speak, if you've breath.\"",
-          topics: [
-            { label: "Where am I?", goto: "where" },
-            { label: "Any advice for a fight?", goto: "advice" },
-            { label: "Let me rest a moment.", action: (g, n, ui) => {
-                g.player.fatigue = g.player.maxFatigue;
-                g.player.hp = Math.min(g.player.maxHp, g.player.hp + 10);
-                ui.log("You catch your breath. (Fatigue restored, +10 health.)", "good");
-                ui.showTopic(n, "greeting", g);
-              } },
-            { label: "Farewell.", action: (g, n, ui) => ui.closeDialogue() }
-          ]
-        },
-        where: {
-          text: "\"The Sunken Hall, beneath Ashfall. Things crawl here now. The eastern door leads deeper — mind the bones.\"",
-          topics: [{ label: "Back.", goto: "greeting" }]
-        },
-        advice: {
-          text: "\"Your blade decides nothing — the dice do. Tire yourself out and you'll swing at shadows. Watch your fatigue, and you'll land true.\"",
-          topics: [{ label: "Back.", goto: "greeting" }]
-        }
-      }
-    };
-    return npc;
+  Game.prototype._makeNpc = function (def, x, y) {
+    return { name: def.name, x, y, radius: 10, isNpc: true,
+      dialogue: def.dialogue, greetingKey: def.greetingKey };
+  };
+
+  // Capture the current zone's enemy state so it persists if we return.
+  Game.prototype._stashZone = function () {
+    if (!this.currentZone) return;
+    this.zoneState[this.currentZone] = this.enemies.map((e) =>
+      ({ hp: e.hp, dead: e.dead, x: e.x, y: e.y, aggro: e.aggro }));
+  };
+
+  // Build a zone and drop the player at the named entry.
+  Game.prototype.loadZone = function (id, entryName) {
+    const def = RPG.Zones[id];
+    if (!def) { this.ui.toast("That way leads nowhere yet."); return; }
+    this.currentZone = id;
+    this.world = new RPG.World(def);
+    this.fx = new RPG.FX();
+
+    const entry = this.world.entries[entryName] || this.world.entries.start ||
+      { x: this.world.w / 2, y: this.world.h / 2 };
+    this.player.x = entry.x; this.player.y = entry.y;
+
+    // Spawn enemies, restoring saved state where we've been before.
+    const saved = this.zoneState[id];
+    this.enemies = this.world.spawns.enemies.map((s, i) => {
+      const e = new RPG.Enemy(s.type, s.x, s.y);
+      if (saved && saved[i]) Object.assign(e, saved[i]);
+      return e;
+    });
+
+    this.npcs = this.world.spawns.npcs.map((s) => this._makeNpc(RPG.Npcs[s.id], s.x, s.y));
+
+    this._portalLock = true;   // don't bounce straight back through the door
+    this.ui.toast(this.world.name);
+    this.ui.log(`You arrive at ${this.world.name}.`, "good");
+  };
+
+  Game.prototype.travel = function (portal) {
+    this._stashZone();
+    this.loadZone(portal.to, portal.entry);
   };
 
   Game.prototype._bindOverlay = function () {
     const overlay = document.getElementById("overlay");
     const start = document.getElementById("btn-start");
     const load = document.getElementById("btn-load");
-    start.onclick = () => { this.overlayUp = false; overlay.classList.add("hidden"); this.ui.log("You enter the Sunken Hall.", "good"); };
+    start.onclick = () => { this.overlayUp = false; overlay.classList.add("hidden"); };
     load.onclick = () => {
       if (this.load()) { this.overlayUp = false; overlay.classList.add("hidden"); }
       else this.ui.toast("No save found.");
@@ -87,30 +101,41 @@
 
   Game.prototype.update = function (dt) {
     const p = this.player;
-
-    // Face the cursor.
     const cam = this.renderer.cam;
     p.facing = Math.atan2(this.input.mouse.y + cam.y - p.y, this.input.mouse.x + cam.x - p.x);
 
-    // Movement.
     if (!p.dead) {
       const mv = this.input.moveVector();
       if (mv.dx || mv.dy) {
         const len = Math.hypot(mv.dx, mv.dy);
         const step = p.moveSpeed * dt;
         this.world.moveCircle(p, (mv.dx / len) * step, (mv.dy / len) * step);
-        p.fatigue = Math.max(0, p.fatigue - 4 * dt);     // moving tires you a little
-        p.trainSkill("Athletics", 0.25 * dt, this.ui);   // and trains Athletics
+        p.fatigue = Math.max(0, p.fatigue - 4 * dt);
+        p.trainSkill("Athletics", 0.25 * dt, this.ui);
       }
+      this._checkPortals();
     }
 
-    // Timers + regen.
     if (p.attackTimer > 0) p.attackTimer -= dt;
     if (p.hitFlash > 0) p.hitFlash -= dt;
-    p.fatigue = Math.min(p.maxFatigue, p.fatigue + 9 * dt);     // recover over time
+    p.fatigue = Math.min(p.maxFatigue, p.fatigue + 9 * dt);
     p.magicka = Math.min(p.maxMagicka, p.magicka + 2.5 * dt);
 
     this._updateEnemies(dt);
+  };
+
+  // Walking onto a portal tile travels through it (unlocked); locked ones warn.
+  Game.prototype._checkPortals = function () {
+    const p = this.player;
+    const portal = this.world.portalAtTile(p.x, p.y);
+    if (!portal) { this._portalLock = false; return; }
+    if (this._portalLock) return;          // we just arrived here; wait until we step off
+    if (portal.locked) {
+      this.ui.toast(portal.label || "It's sealed.");
+      this._portalLock = true;             // toast once until they leave the tile
+    } else {
+      this.travel(portal);
+    }
   };
 
   Game.prototype._updateEnemies = function (dt) {
@@ -121,7 +146,7 @@
       if (e.attackTimer > 0) e.attackTimer -= dt;
 
       const dx = p.x - e.x, dy = p.y - e.y;
-      const dist = Math.hypot(dx, dy);
+      const dist = Math.hypot(dx, dy) || 0.0001;
 
       if (!e.aggro && dist < e.def.aggroRange && !p.dead) e.aggro = true;
 
@@ -134,7 +159,6 @@
           RPG.Combat.enemyAttack(this, e);
         }
       } else {
-        // Idle wander.
         e.wanderTimer -= dt;
         if (e.wanderTimer <= 0) { e.wanderAngle = Math.random() * Math.PI * 2; e.wanderTimer = 1 + Math.random() * 2; }
         const step = e.def.speed * 0.35 * dt;
@@ -143,15 +167,24 @@
     }
   };
 
-  // E key: talk to a nearby NPC, or step through the eastern door.
+  // E: talk to a nearby NPC, or step through / inspect a nearby portal.
   Game.prototype.tryInteract = function () {
     const p = this.player;
+    let best = null, bestD = 42;
     for (const n of this.npcs) {
-      if (Math.hypot(n.x - p.x, n.y - p.y) < 42) { this.ui.openDialogue(n, this); return; }
+      const d = Math.hypot(n.x - p.x, n.y - p.y);
+      if (d < bestD) { bestD = d; best = n; }
     }
-    const exit = this.world.spawns.exit;
-    if (exit && Math.hypot(exit.x - p.x, exit.y - p.y) < 40) {
-      this.ui.toast("The eastern door is sealed... for now. (More to come!)");
+    if (best) { this.ui.openDialogue(best, this); return; }
+
+    let portal = null, pd = 40;
+    for (const pt of this.world.portals) {
+      const d = Math.hypot(pt.x - p.x, pt.y - p.y);
+      if (d < pd) { pd = d; portal = pt; }
+    }
+    if (portal) {
+      if (portal.locked) this.ui.toast(portal.label || "It's sealed.");
+      else this.travel(portal);
       return;
     }
     this.ui.toast("Nothing to interact with here.");
@@ -159,42 +192,36 @@
 
   // ---------- Save / load ----------
   Game.prototype.save = function () {
+    this._stashZone();
     const p = this.player;
     const state = {
-      seed: RPG.RNG.seed,
+      currentZone: this.currentZone,
+      zoneState: this.zoneState,
       player: {
         x: p.x, y: p.y, hp: p.hp, magicka: p.magicka, fatigue: p.fatigue,
         level: p.level, attributes: p.attributes, skills: p.skills, equipped: p.equipped
-      },
-      enemies: this.enemies.map((e) => ({ type: e.type, x: e.x, y: e.y, hp: e.hp, dead: e.dead }))
+      }
     };
-    if (RPG.Save.write(state)) this.ui.toast("Saved.");
-    else this.ui.toast("Could not save (storage blocked).");
+    this.ui.toast(RPG.Save.write(state) ? "Saved." : "Could not save (storage blocked).");
   };
 
   Game.prototype.load = function () {
     const s = RPG.Save.read();
     if (!s) return false;
-    this.reset();
-    const p = this.player;
+    this.player = new RPG.Player(0, 0);
+    this.zoneState = s.zoneState || {};
+    this.loadZone(s.currentZone || "port_landing", "start");
+
+    const p = this.player, sp = s.player;
     Object.assign(p, {
-      x: s.player.x, y: s.player.y, hp: s.player.hp, magicka: s.player.magicka,
-      fatigue: s.player.fatigue, level: s.player.level, equipped: s.player.equipped,
-      attributes: s.player.attributes, skills: s.player.skills, dead: false
+      x: sp.x, y: sp.y, hp: sp.hp, magicka: sp.magicka, fatigue: sp.fatigue,
+      level: sp.level, equipped: sp.equipped, attributes: sp.attributes, skills: sp.skills, dead: false
     });
     p.recalc();
-    // Restore enemy states by index/type where the layout matches.
-    this.enemies.forEach((e, i) => {
-      const se = s.enemies[i];
-      if (se && se.type === e.type) { e.x = se.x; e.y = se.y; e.hp = se.hp; e.dead = se.dead; }
-    });
     this.ui.toast("Loaded.");
     this.ui.log("You resume your delve.", "good");
     return true;
   };
 
-  // Boot once the DOM and all scripts are ready.
-  window.addEventListener("DOMContentLoaded", function () {
-    RPG.game = new Game();
-  });
+  window.addEventListener("DOMContentLoaded", function () { RPG.game = new Game(); });
 })(window.RPG = window.RPG || {});
