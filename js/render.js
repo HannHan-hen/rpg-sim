@@ -65,6 +65,22 @@
     // Static terrain is baked to an offscreen canvas once per zone, then blitted.
     this.terrain = null;
     this.terrainZone = null;
+    // Reusable radial light sprites, baked once. Building a gradient every frame
+    // for every light was a real cost; a cached sprite blitted (and scaled for
+    // flicker) gives the same soft falloff far more cheaply.
+    this._carveSprite = makeRadial(256, [[0, "rgba(255,255,255,1)"], [1, "rgba(255,255,255,0)"]]);
+    this._glowSprite = makeRadial(128, [[0, "rgba(255,150,40,0.35)"], [1, "rgba(255,150,40,0)"]]);
+  }
+
+  // A square canvas holding one radial gradient, centred, fading to transparent.
+  function makeRadial(R, stops) {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = R * 2;
+    const cx = cv.getContext("2d");
+    const g = cx.createRadialGradient(R, R, 0, R, R, R);
+    for (const s of stops) g.addColorStop(s[0], s[1]);
+    cx.fillStyle = g; cx.fillRect(0, 0, R * 2, R * 2);
+    return cv;
   }
 
   Renderer.prototype.centerOn = function (e, world) {
@@ -357,18 +373,20 @@
     l.fillStyle = `rgba(6,6,12,${amb.darkness})`;
     l.fillRect(0, 0, this.W, this.H);
 
+    // Carve light holes by blitting the white sprite under destination-out;
+    // strength rides on globalAlpha, radius on the drawImage scale.
     l.globalCompositeOperation = "destination-out";
     const carve = (x, y, radius, strength) => {
       const sx = x - this.cam.x, sy = y - this.cam.y;
-      const g = l.createRadialGradient(sx, sy, 0, sx, sy, radius);
-      g.addColorStop(0, `rgba(0,0,0,${strength})`); g.addColorStop(1, "rgba(0,0,0,0)");
-      l.fillStyle = g; l.fillRect(sx - radius, sy - radius, radius * 2, radius * 2);
+      l.globalAlpha = strength;
+      l.drawImage(this._carveSprite, sx - radius, sy - radius, radius * 2, radius * 2);
     };
     carve(game.player.x, game.player.y, amb.light, 0.95);
     for (const t of world.torches) {
       const flick = 0.85 + Math.sin(this.time * 9 + t.x) * 0.08 + Math.random() * 0.04;
       carve(t.x, t.y, 95 * flick, 1.0);
     }
+    l.globalAlpha = 1;
     this.ctx.drawImage(this.light, 0, 0);
 
     // Warm torch glow + flame nubs on top.
@@ -376,10 +394,8 @@
     ctx.globalCompositeOperation = "lighter";
     for (const t of world.torches) {
       const sx = t.x - this.cam.x, sy = t.y - this.cam.y;
-      const flick = 0.8 + Math.sin(this.time * 9 + t.x) * 0.2;
-      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 70 * flick);
-      g.addColorStop(0, "rgba(255,150,40,0.35)"); g.addColorStop(1, "rgba(255,150,40,0)");
-      ctx.fillStyle = g; ctx.fillRect(sx - 70, sy - 70, 140, 140);
+      const radius = 70 * (0.8 + Math.sin(this.time * 9 + t.x) * 0.2);
+      ctx.drawImage(this._glowSprite, sx - radius, sy - radius, radius * 2, radius * 2);
     }
     ctx.globalCompositeOperation = "source-over";
     for (const t of world.torches) {
