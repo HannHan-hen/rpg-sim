@@ -52,7 +52,9 @@
   // ---------- Renderer ----------
   function Renderer(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    // Opaque backing buffer: the world fills the screen, so we never need the
+    // canvas to be transparent. This lets the browser skip per-pixel blending.
+    this.ctx = canvas.getContext("2d", { alpha: false });
     this.W = canvas.width;
     this.H = canvas.height;
     this.cam = { x: 0, y: 0 };
@@ -60,6 +62,25 @@
     this.light.width = this.W; this.light.height = this.H;
     this.lctx = this.light.getContext("2d");
     this.time = 0;
+    // Static terrain is baked to an offscreen canvas once per zone, then blitted.
+    this.terrain = null;
+    this.terrainZone = null;
+    // Reusable radial light sprites, baked once. Building a gradient every frame
+    // for every light was a real cost; a cached sprite blitted (and scaled for
+    // flicker) gives the same soft falloff far more cheaply.
+    this._carveSprite = makeRadial(256, [[0, "rgba(255,255,255,1)"], [1, "rgba(255,255,255,0)"]]);
+    this._glowSprite = makeRadial(128, [[0, "rgba(255,150,40,0.35)"], [1, "rgba(255,150,40,0)"]]);
+  }
+
+  // A square canvas holding one radial gradient, centred, fading to transparent.
+  function makeRadial(R, stops) {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = R * 2;
+    const cx = cv.getContext("2d");
+    const g = cx.createRadialGradient(R, R, 0, R, R, R);
+    for (const s of stops) g.addColorStop(s[0], s[1]);
+    cx.fillStyle = g; cx.fillRect(0, 0, R * 2, R * 2);
+    return cv;
   }
 
   Renderer.prototype.centerOn = function (e, world) {
@@ -71,28 +92,24 @@
     this.time += dt;
     const ctx = this.ctx, world = game.world, cam = this.cam;
     this.centerOn(game.player, world);
-    ctx.clearRect(0, 0, this.W, this.H);
+
+    // Terrain is static, so bake the whole zone once and just blit the slice the
+    // camera can see. One drawImage replaces hundreds of per-tile fill/stroke ops.
+    if (this.terrainZone !== world.id) this._bakeTerrain(world);
+    ctx.fillStyle = "#06060c";
+    ctx.fillRect(0, 0, this.W, this.H);
+    const sw = Math.min(this.W, world.w - cam.x);
+    const sh = Math.min(this.H, world.h - cam.y);
+    ctx.drawImage(this.terrain, cam.x, cam.y, sw, sh, 0, 0, sw, sh);
 
     const c0 = Math.max(0, (cam.x / TILE) | 0);
     const r0 = Math.max(0, (cam.y / TILE) | 0);
     const c1 = Math.min(world.cols - 1, ((cam.x + this.W) / TILE | 0) + 1);
     const r1 = Math.min(world.rows - 1, ((cam.y + this.H) / TILE | 0) + 1);
 
-    // Ground first (every cell gets a floor underlay so blockers sit on it).
-    for (let r = r0; r <= r1; r++)
-      for (let c = c0; c <= c1; c++)
-        if (world.grid[r][c] !== T.WALL) this._floorTile(ctx, c, r, world);
-
-    // Blocking terrain on top.
-    for (let r = r0; r <= r1; r++) {
-      for (let c = c0; c <= c1; c++) {
-        const v = world.grid[r][c];
-        if (v === T.WALL) this._wallTile(ctx, c, r, world);
-        else if (v === T.WATER) this._waterTile(ctx, c, r);
-        else if (v === T.TREE) this._treeTile(ctx, c, r);
-        else if (v === T.ROCK) this._rockTile(ctx, c, r);
-      }
-    }
+    // The only animated terrain: water shimmer, drawn over the baked base for
+    // the handful of water tiles currently on screen.
+    this._waterShimmer(ctx, world, c0, r0, c1, r1);
 
     this._drawPortals(ctx, world);
     this._drawContainers(ctx, game);
@@ -116,8 +133,45 @@
     this._lighting(game, world);
   };
 
+  // Bake every static tile of the zone into an offscreen canvas (world-sized).
+  // Coordinates here are world-space — no camera — because the result is reused
+  // across frames and we just blit the visible window of it in draw().
+  Renderer.prototype._bakeTerrain = function (world) {
+    const cv = this.terrain || (this.terrain = document.createElement("canvas"));
+    cv.width = world.w; cv.height = world.h;
+    const tctx = cv.getContext("2d");
+    for (let r = 0; r < world.rows; r++)
+      for (let c = 0; c < world.cols; c++)
+        if (world.grid[r][c] !== T.WALL) this._floorTile(tctx, c, r, world);
+    for (let r = 0; r < world.rows; r++) {
+      for (let c = 0; c < world.cols; c++) {
+        const v = world.grid[r][c];
+        if (v === T.WALL) this._wallTile(tctx, c, r, world);
+        else if (v === T.WATER) this._waterTile(tctx, c, r);
+        else if (v === T.TREE) this._treeTile(tctx, c, r);
+        else if (v === T.ROCK) this._rockTile(tctx, c, r);
+      }
+    }
+    this.terrainZone = world.id;
+  };
+
+  // Animated water lines, drawn live over the baked water base (visible tiles only).
+  Renderer.prototype._waterShimmer = function (ctx, world, c0, r0, c1, r1) {
+    ctx.strokeStyle = "rgba(150,190,220,0.25)"; ctx.lineWidth = 1;
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        if (world.grid[r][c] !== T.WATER) continue;
+        const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+        for (let i = 0; i < 2; i++) {
+          const yy = y + 9 + i * 12 + Math.sin(this.time * 1.6 + c + i) * 2;
+          ctx.beginPath(); ctx.moveTo(x + 3, yy); ctx.lineTo(x + TILE - 3, yy); ctx.stroke();
+        }
+      }
+    }
+  };
+
   Renderer.prototype._floorTile = function (ctx, c, r, world) {
-    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    const x = c * TILE, y = r * TILE;
     const g = world.ambient.ground;
     const n = hash2(c, r);
     const j = Math.floor(n * 16) - 6;
@@ -137,7 +191,7 @@
   };
 
   Renderer.prototype._wallTile = function (ctx, c, r, world) {
-    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    const x = c * TILE, y = r * TILE;
     const southFloor = r + 1 < world.rows && world.grid[r + 1][c] === T.FLOOR;
     ctx.fillStyle = "#2c2620"; ctx.fillRect(x, y, TILE, TILE);
     ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
@@ -150,18 +204,13 @@
   };
 
   Renderer.prototype._waterTile = function (ctx, c, r) {
-    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    const x = c * TILE, y = r * TILE;
+    // Static base only; the moving shimmer is layered live in _waterShimmer.
     ctx.fillStyle = "#243a55"; ctx.fillRect(x, y, TILE, TILE);
-    // Gentle shimmer.
-    ctx.strokeStyle = "rgba(150,190,220,0.25)"; ctx.lineWidth = 1;
-    for (let i = 0; i < 2; i++) {
-      const yy = y + 9 + i * 12 + Math.sin(this.time * 1.6 + c + i) * 2;
-      ctx.beginPath(); ctx.moveTo(x + 3, yy); ctx.lineTo(x + TILE - 3, yy); ctx.stroke();
-    }
   };
 
   Renderer.prototype._treeTile = function (ctx, c, r) {
-    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    const x = c * TILE, y = r * TILE;
     const n = hash2(c, r);
     ctx.fillStyle = "#3a2c1c"; ctx.fillRect(x + TILE / 2 - 2, y + TILE - 12, 4, 12); // trunk
     const cr = 11 + n * 2;
@@ -172,7 +221,7 @@
   };
 
   Renderer.prototype._rockTile = function (ctx, c, r) {
-    const x = c * TILE - this.cam.x, y = r * TILE - this.cam.y;
+    const x = c * TILE, y = r * TILE;
     ctx.fillStyle = "#5b554c";
     ctx.beginPath(); ctx.ellipse(x + TILE / 2, y + TILE / 2 + 2, 12, 9, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#6f6a60";
@@ -324,18 +373,20 @@
     l.fillStyle = `rgba(6,6,12,${amb.darkness})`;
     l.fillRect(0, 0, this.W, this.H);
 
+    // Carve light holes by blitting the white sprite under destination-out;
+    // strength rides on globalAlpha, radius on the drawImage scale.
     l.globalCompositeOperation = "destination-out";
     const carve = (x, y, radius, strength) => {
       const sx = x - this.cam.x, sy = y - this.cam.y;
-      const g = l.createRadialGradient(sx, sy, 0, sx, sy, radius);
-      g.addColorStop(0, `rgba(0,0,0,${strength})`); g.addColorStop(1, "rgba(0,0,0,0)");
-      l.fillStyle = g; l.fillRect(sx - radius, sy - radius, radius * 2, radius * 2);
+      l.globalAlpha = strength;
+      l.drawImage(this._carveSprite, sx - radius, sy - radius, radius * 2, radius * 2);
     };
     carve(game.player.x, game.player.y, amb.light, 0.95);
     for (const t of world.torches) {
       const flick = 0.85 + Math.sin(this.time * 9 + t.x) * 0.08 + Math.random() * 0.04;
       carve(t.x, t.y, 95 * flick, 1.0);
     }
+    l.globalAlpha = 1;
     this.ctx.drawImage(this.light, 0, 0);
 
     // Warm torch glow + flame nubs on top.
@@ -343,10 +394,8 @@
     ctx.globalCompositeOperation = "lighter";
     for (const t of world.torches) {
       const sx = t.x - this.cam.x, sy = t.y - this.cam.y;
-      const flick = 0.8 + Math.sin(this.time * 9 + t.x) * 0.2;
-      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 70 * flick);
-      g.addColorStop(0, "rgba(255,150,40,0.35)"); g.addColorStop(1, "rgba(255,150,40,0)");
-      ctx.fillStyle = g; ctx.fillRect(sx - 70, sy - 70, 140, 140);
+      const radius = 70 * (0.8 + Math.sin(this.time * 9 + t.x) * 0.2);
+      ctx.drawImage(this._glowSprite, sx - radius, sy - radius, radius * 2, radius * 2);
     }
     ctx.globalCompositeOperation = "source-over";
     for (const t of world.torches) {
