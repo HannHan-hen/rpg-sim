@@ -57,19 +57,27 @@
     while (this.el.log.childNodes.length > 8) this.el.log.removeChild(this.el.log.firstChild);
   };
 
+  // Called every frame, so we diff against the last written values and only touch
+  // the DOM when something actually changed — DOM writes are what's expensive here.
   UI.prototype.updateHud = function (p) {
-    this.el.health.style.width = (100 * Math.max(0, p.hp) / p.maxHp) + "%";
-    this.el.magicka.style.width = (100 * Math.max(0, p.magicka) / p.maxMagicka) + "%";
-    this.el.fatigue.style.width = (100 * Math.max(0, p.fatigue) / p.maxFatigue) + "%";
-    this.el.level.textContent = p.level;
-    this.el.vis.textContent = Math.floor(p.vis);
+    const c = this._hud || (this._hud = {});
+    const hw = 100 * Math.max(0, p.hp) / p.maxHp;
+    const mw = 100 * Math.max(0, p.magicka) / p.maxMagicka;
+    const fw = 100 * Math.max(0, p.fatigue) / p.maxFatigue;
+    if (hw !== c.hw) { this.el.health.style.width = hw + "%"; c.hw = hw; }
+    if (mw !== c.mw) { this.el.magicka.style.width = mw + "%"; c.mw = mw; }
+    if (fw !== c.fw) { this.el.fatigue.style.width = fw + "%"; c.fw = fw; }
+    if (p.level !== c.level) { this.el.level.textContent = p.level; c.level = p.level; }
+    const vis = Math.floor(p.vis);
+    if (vis !== c.vis) { this.el.vis.textContent = vis; c.vis = vis; }
 
-    // Active effect pips.
-    let h = "";
+    // Active effect pips — rebuild only when the set or its readouts change.
+    let sig = "", h = "";
     for (const a of p.activeEffects) {
+      sig += a.name + "/" + a.magnitude + "/" + Math.ceil(a.remaining) + "|";
       h += `<span class="eff" style="border-color:${a.color}">${a.name} ${a.magnitude} · ${Math.ceil(a.remaining)}s</span>`;
     }
-    this.el.effects.innerHTML = h;
+    if (sig !== c.effSig) { this.el.effects.innerHTML = h; c.effSig = sig; }
   };
 
   UI.prototype.toggleSheet = function (p) {
